@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bora Estudar — Protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#FBF7EE;
+    --paper-deep:#F3EDDD;
+    --line:#DAD2BC;
+    --ink:#20262F;
+    --ink-soft:#5B6472;
+    --ink-blue:#2C4870;
+    --ink-blue-deep:#1E3352;
+    --highlighter:#F5C93D;
+    --highlighter-soft:#FCE9A8;
+    --coral:#E8674A;
+    --coral-soft:#FBEAE4;
+    --mint:#6FA98B;
+    --mint-soft:#DCEBE2;
+    --lilac:#8672C0;
+    --lilac-soft:#E7E1F5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#EDE6D4;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:32px 12px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .hint{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:#8b8367;
+    margin-bottom:16px;
+    text-align:center;
+    max-width:400px;
+  }
+  .phone{
+    width:402px;
+    max-width:100%;
+    height:860px;
+    background:var(--paper);
+    border-radius:34px;
+    box-shadow:0 30px 70px -20px rgba(30,25,10,.45), 0 0 0 8px #17181B;
+    overflow:hidden;
+    position:relative;
+  }
+  .notch{
+    position:absolute;
+    top:0; left:50%;
+    transform:translateX(-50%);
+    width:120px; height:22px;
+    background:#17181B;
+    border-radius:0 0 16px 16px;
+    z-index:40;
+  }
+  .spiral{
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width:26px;
+    background:linear-gradient(90deg, #E7DFC8, transparent);
+    z-index:20;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:60px 0 30px;
+    gap:15px;
+  }
+  .spiral i{
+    width:11px; height:11px;
+    border-radius:50%;
+    background:var(--paper);
+    box-shadow: inset 0 0 0 2px #B9AE8C, 2px 0 0 rgba(0,0,0,.06);
+  }
+
+  .screen{
+    display:none;
+    position:absolute;
+    inset:0;
+    overflow-y:auto;
+  }
+  .screen.active{ display:block; }
+
+  .sheet{
+    position:relative;
+    padding:54px 22px 100px 42px;
+    background-image: repeating-linear-gradient(
+      to bottom, transparent 0px, transparent 30px, var(--line) 31px
+    );
+    background-position: 0 76px;
+    min-height:820px;
+  }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  h1,h2,h3{ font-family:'Space Grotesk',sans-serif; margin:0; letter-spacing:-.01em; }
+  .hand{ font-family:'Kalam',cursive; }
+
+  /* ===== HOME ===== */
+  .header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
+  .greet h1{ font-size:23px; }
+  .greet span.hand{ display:block; color:var(--ink-blue); font-size:15px; margin-top:2px; transform:rotate(-1deg); }
+  .energy-pill{
+    display:flex; align-items:center; gap:6px;
+    background:var(--paper); border:2px solid var(--ink); border-radius:999px;
+    padding:6px 12px 6px 8px; font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:13px;
+    box-shadow:2px 2px 0 var(--ink);
+  }
+  .streak-card{
+    background:var(--paper); border:2px solid var(--ink); border-radius:18px;
+    padding:14px 16px; margin-bottom:26px; box-shadow:3px 3px 0 var(--ink);
+  }
+  .streak-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .streak-top .num{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; color:var(--coral); }
+  .stamps{ display:flex; gap:9px; }
+  .stamp{
+    width:34px; height:34px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; font-size:15px;
+    border:2px dashed var(--line); color:var(--ink-soft);
+  }
+  .stamp.done{ background:var(--coral); border:2px solid var(--ink); color:#fff; transform:rotate(-6deg); box-shadow:1px 1px 0 var(--ink); }
+  .stamp.today{ border:2px solid var(--ink-blue); color:var(--ink-blue); background:var(--highlighter-soft); }
+
+  .subjects{ display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; margin-bottom:26px; scrollbar-width:none; }
+  .subjects::-webkit-scrollbar{display:none;}
+  .tab{
+    flex:0 0 auto; padding:9px 14px; border-radius:8px; font-weight:600; font-size:13.5px;
+    border:2px solid var(--ink); white-space:nowrap; transform:rotate(-1.5deg); box-shadow:2px 2px 0 var(--ink);
+    cursor:pointer;
+  }
+  .tab:nth-child(2){ transform:rotate(1.5deg); }
+  .tab:nth-child(3){ transform:rotate(-1deg); }
+  .tab:nth-child(4){ transform:rotate(1deg); }
+  .tab.active{ background:var(--ink-blue); color:#fff; border-color:var(--ink-blue-deep); }
+  .tab.c1{ background:var(--mint-soft); }
+  .tab.c2{ background:var(--highlighter-soft); }
+  .tab.c3{ background:var(--lilac-soft); }
+  .tab.add{ background:transparent; border-style:dashed; color:var(--ink-soft); transform:none; box-shadow:none; }
+
+  .section-title{ display:flex; align-items:baseline; gap:8px; margin-bottom:12px; }
+  .section-title h2{ font-size:16px; }
+  .section-title .hand{ font-size:13px; color:var(--ink-soft); }
+
+  .journey{
+    position:relative; background:var(--ink-blue); color:#fff; border-radius:18px;
+    padding:20px 20px 22px; margin-bottom:22px; overflow:hidden; cursor:pointer;
+  }
+  .journey::before{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 90% -10%, rgba(255,255,255,.16), transparent 55%); }
+  .journey .subject-name{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; opacity:.75; }
+  .journey h3{ font-size:21px; margin-top:2px; margin-bottom:14px;}
+  .countdown{
+    position:absolute; top:14px; right:0; background:var(--highlighter); color:var(--ink);
+    padding:9px 16px 9px 20px; border-radius:9px 0 0 9px; font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:12.5px;
+    box-shadow:-3px 3px 0 rgba(0,0,0,.15); clip-path: polygon(0 8%, 100% 0, 100% 100%, 0 92%, 6% 50%);
+  }
+  .phases{ display:flex; gap:6px; margin-bottom:14px; }
+  .phase{ flex:1; height:7px; border-radius:4px; background:rgba(255,255,255,.25); }
+  .phase.on{ background:var(--highlighter); }
+  .journey-foot{ display:flex; justify-content:space-between; align-items:center; }
+  .journey-foot .hand{ font-size:14px; opacity:.9; }
+  .btn-continue{ background:#fff; color:var(--ink-blue-deep); border:none; border-radius:999px; padding:9px 16px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; cursor:pointer; }
+
+  .quiz-card{ background:var(--paper); border:2px solid var(--ink); border-radius:18px; padding:16px 18px; margin-bottom:22px; box-shadow:3px 3px 0 var(--ink); cursor:pointer; }
+  .quiz-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .quiz-head h3{ font-size:16.5px; }
+  .timer{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:12px; color:var(--coral); background:var(--coral-soft); padding:4px 9px; border-radius:999px; }
+  .quiz-sub{ font-size:13px; color:var(--ink-soft); margin-bottom:14px; }
+  .ranking-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px dashed var(--line); }
+  .ranking-row:first-of-type{ border-top:none; }
+  .medal{ width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:var(--paper-deep); color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; }
+  .ranking-row:first-child .medal{ background:var(--highlighter); color:var(--ink); }
+  .avatar{ width:32px; height:32px; border-radius:50%; background:var(--lilac-soft); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:var(--lilac); font-family:'Space Grotesk',sans-serif; flex-shrink:0; }
+  .r-name{ font-weight:600; font-size:13.5px; }
+  .r-meta{ font-size:11.5px; color:var(--ink-soft); }
+  .r-score{ margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink-soft); }
+
+  .upload-cta{ position:relative; background:var(--coral); color:#fff; border-radius:16px; padding:18px 20px; text-align:center; margin-bottom:10px; transform:rotate(-0.6deg); box-shadow:3px 4px 0 var(--ink); cursor:pointer; }
+  .upload-cta h3{ font-size:16px; margin-bottom:4px; }
+  .upload-cta p{ margin:0 0 14px; font-size:12.5px; opacity:.9; font-family:'Inter'; }
+  .upload-btn{ background:var(--ink); color:#fff; border:none; padding:11px 22px; border-radius:999px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; display:inline-flex; align-items:center; gap:8px; pointer-events:none; }
+  .staple{ position:absolute; top:-6px; left:50%; transform:translateX(-50%) rotate(3deg); width:26px; height:12px; border:2px solid #8b8b8b; border-bottom:none; border-radius:4px 4px 0 0; }
+
+  /* ===== TOPBAR (non-home screens) ===== */
+  .topbar{ display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+  .back-btn{
+    width:34px; height:34px; border-radius:50%; border:2px solid var(--ink); background:var(--paper);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:2px 2px 0 var(--ink); flex-shrink:0;
+  }
+  .topbar h2{ font-size:18px; }
+
+  /* ===== UPLOAD / NOVA MATÉRIA ===== */
+  .step-label{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:10px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:9px; margin-bottom:28px; }
+  .chip{
+    padding:9px 15px; border-radius:999px; border:2px solid var(--ink); font-weight:600; font-size:13px;
+    background:var(--paper); cursor:pointer; box-shadow:2px 2px 0 var(--ink);
+  }
+  .chip.sel{ background:var(--ink-blue); color:#fff; border-color:var(--ink-blue-deep); }
+  .date-field{
+    background:var(--paper); border:2px solid var(--ink); border-radius:14px; padding:14px 16px;
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; box-shadow:3px 3px 0 var(--ink);
+  }
+  .date-field .val{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px; color:var(--ink-blue); }
+  .camera-frame{
+    position:relative; background:#1B1B1F; border-radius:16px; height:230px; margin-bottom:10px;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    border:3px solid var(--ink); transform:rotate(0.6deg); box-shadow:4px 5px 0 rgba(32,38,47,.25);
+  }
+  .camera-frame .tape{
+    position:absolute; top:-10px; left:20px; width:64px; height:22px; background:rgba(245,201,61,.85);
+    transform:rotate(-8deg); box-shadow:0 2px 4px rgba(0,0,0,.15);
+  }
+  .camera-frame .corner-tag{
+    position:absolute; bottom:10px; left:10px; background:rgba(255,255,255,.12); color:#fff;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; padding:4px 8px; border-radius:6px;
+  }
+  .shutter{ width:64px; height:64px; border-radius:50%; background:#fff; border:4px solid #cfcfcf; }
+  .capture-row{ display:flex; justify-content:center; gap:26px; align-items:center; margin-bottom:26px; }
+  .capture-side{ width:42px; height:42px; border-radius:50%; background:var(--paper-deep); border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .create-btn{
+    width:100%; background:var(--coral); color:#fff; border:2px solid var(--ink); border-radius:999px;
+    padding:15px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; box-shadow:3px 3px 0 var(--ink); cursor:pointer;
+  }
+
+  /* ===== QUIZ ===== */
+  .quiz-topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .quiz-progress-label{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft); }
+  .points{ display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:13px; color:var(--mint); }
+  .bar-track{ height:8px; background:var(--paper-deep); border-radius:6px; border:2px solid var(--ink); overflow:hidden; margin-bottom:26px; }
+  .bar-fill{ height:100%; width:55%; background:var(--highlighter); }
+  .question-card{ background:var(--paper); border:2px solid var(--ink); border-radius:18px; padding:20px; margin-bottom:22px; box-shadow:4px 4px 0 var(--ink); }
+  .q-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--lilac); text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+  .q-text{ font-size:18px; font-family:'Space Grotesk',sans-serif; font-weight:600; line-height:1.35; }
+  .options{ display:flex; flex-direction:column; gap:11px; margin-bottom:24px; }
+  .option{
+    display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:13px; border:2px solid var(--ink);
+    background:var(--paper); font-size:14px; font-weight:500; cursor:pointer;
+  }
+  .option .letter{
+    width:26px; height:26px; border-radius:8px; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:12px; flex-shrink:0;
+  }
+  .option.correct{ background:var(--mint-soft); border-color:var(--mint); }
+  .option.correct .letter{ background:var(--mint); border-color:var(--mint); color:#fff; }
+  .option.wrong{ background:var(--coral-soft); border-color:var(--coral); }
+  .option.wrong .letter{ background:var(--coral); border-color:var(--coral); color:#fff; }
+  .feedback{
+    display:flex; align-items:center; gap:10px; background:var(--mint-soft); border:2px solid var(--mint);
+    border-radius:14px; padding:13px 16px; margin-bottom:18px;
+  }
+  .feedback .hand{ font-size:15px; color:#2E5240; }
+  .next-btn{ width:100%; background:var(--ink-blue); color:#fff; border:none; border-radius:999px; padding:15px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; cursor:pointer; }
+
+  /* ===== PERFIL ===== */
+  .profile-head{ display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+  .big-avatar{
+    width:64px; height:64px; border-radius:16px; background:var(--lilac-soft); border:2px solid var(--ink);
+    display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; color:var(--lilac);
+    transform:rotate(-2deg); box-shadow:2px 2px 0 var(--ink);
+  }
+  .profile-head h1{ font-size:19px; }
+  .profile-head .hand{ color:var(--ink-soft); font-size:13px; }
+  .xp-row{ display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft); margin-bottom:6px; }
+  .xp-track{ height:10px; background:var(--paper-deep); border:2px solid var(--ink); border-radius:6px; overflow:hidden; margin-bottom:24px; }
+  .xp-fill{ height:100%; width:68%; background:linear-gradient(90deg, var(--highlighter), var(--coral)); }
+  .stat-row{ display:flex; gap:10px; margin-bottom:26px; }
+  .stat-box{ flex:1; background:var(--paper); border:2px solid var(--ink); border-radius:14px; padding:12px; text-align:center; box-shadow:2px 2px 0 var(--ink); }
+  .stat-box .n{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; }
+  .stat-box .l{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
+  .badges{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:10px; }
+  .badge{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .badge-icon{
+    width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:24px;
+    border:2px solid var(--ink); box-shadow:2px 2px 0 var(--ink);
+  }
+  .badge-icon.gold{ background:var(--highlighter-soft); }
+  .badge-icon.mint{ background:var(--mint-soft); }
+  .badge-icon.coral{ background:var(--coral-soft); }
+  .badge-icon.lilac{ background:var(--lilac-soft); }
+  .badge-icon.locked{ background:var(--paper-deep); border-style:dashed; color:#B8AF95; filter:grayscale(1); opacity:.6; }
+  .badge .lbl{ font-size:9.5px; text-align:center; color:var(--ink-soft); font-weight:600; line-height:1.2; }
+
+  /* ===== RANKING ===== */
+  .rank-tabs{ display:flex; gap:8px; margin-bottom:22px; overflow-x:auto; }
+  .rank-list{ display:flex; flex-direction:column; gap:10px; }
+  .rank-item{
+    display:flex; align-items:center; gap:12px; background:var(--paper); border:2px solid var(--ink); border-radius:14px;
+    padding:11px 14px; box-shadow:2px 2px 0 var(--ink);
+  }
+  .rank-item.me{ background:var(--highlighter-soft); border-color:var(--ink); }
+  .rank-pos{ width:22px; text-align:center; font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:13px; color:var(--ink-soft); }
+  .rank-item:nth-child(1) .rank-pos{ color:#C9971A; font-size:16px; }
+  .rank-item:nth-child(2) .rank-pos{ color:#8A8A8A; font-size:15px; }
+  .rank-item:nth-child(3) .rank-pos{ color:#B5651D; font-size:15px; }
+
+  /* ===== NAV ===== */
+  .navbar{
+    position:absolute; bottom:0; left:0; right:0; background:var(--paper); border-top:2px solid var(--ink);
+    display:flex; padding:12px 18px 22px; z-index:30;
+  }
+  .nav-item{ flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; color:var(--ink-soft); font-weight:600; cursor:pointer; background:none; border:none; font-family:'Inter'; }
+  .nav-item.active{ color:var(--ink-blue); }
+  .nav-icon{ width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+
+  /* ===== FONTES DE MATERIAL (upload) ===== */
+  .source-tabs{ display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; }
+  .src-tab{
+    flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:9px 13px; border-radius:10px;
+    border:2px solid var(--ink); font-weight:600; font-size:12.5px; background:var(--paper); cursor:pointer;
+  }
+  .src-tab.on{ background:var(--ink-blue); color:#fff; border-color:var(--ink-blue-deep); }
+  .source-panel{ display:none; margin-bottom:10px; }
+  .source-panel.on{ display:block; }
+  .link-box{
+    position:relative; background:#1B1B1F; border-radius:16px; padding:26px 20px; margin-bottom:10px;
+    border:3px solid var(--ink); transform:rotate(-0.5deg); box-shadow:4px 5px 0 rgba(32,38,47,.25); text-align:center;
+  }
+  .link-box .ic{ font-size:30px; margin-bottom:10px; }
+  .link-box input{
+    width:100%; background:#2A2A30; border:2px solid #45454C; border-radius:10px; padding:11px 13px;
+    color:#fff; font-family:'IBM Plex Mono',monospace; font-size:12.5px; margin-top:4px;
+  }
+  .link-box input::placeholder{ color:#8b8b93; }
+  .file-box{
+    border:2px dashed var(--line); border-radius:16px; padding:34px 20px; text-align:center; margin-bottom:10px; color:var(--ink-soft);
+  }
+  .file-box .ic{ font-size:28px; margin-bottom:8px; display:block; }
+
+  /* ===== GRUPOS ===== */
+  .scope-toggle{ display:flex; gap:8px; margin-bottom:18px; }
+  .scope-pill{ flex:1; text-align:center; padding:9px; border-radius:999px; border:2px solid var(--ink); font-weight:600; font-size:12.5px; cursor:pointer; background:var(--paper); }
+  .scope-pill.on{ background:var(--highlighter); }
+  .group-link-btn{
+    display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:11.5px;
+    color:var(--ink-blue); font-weight:600; cursor:pointer; margin-left:auto;
+  }
+  .group-card{ background:var(--paper); border:2px solid var(--ink); border-radius:16px; padding:15px 16px; margin-bottom:16px; box-shadow:3px 3px 0 var(--ink); }
+  .group-card-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+  .group-card h3{ font-size:15.5px; }
+  .group-card .hand{ color:var(--ink-soft); font-size:12.5px; }
+  .member-stack{ display:flex; margin-bottom:12px; }
+  .member-stack .avatar{ width:28px; height:28px; font-size:11px; margin-left:-8px; border:2px solid var(--paper); }
+  .member-stack .avatar:first-child{ margin-left:0; }
+  .member-stack .more{ width:28px; height:28px; border-radius:50%; background:var(--paper-deep); border:2px solid var(--paper); margin-left:-8px; display:flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:700; color:var(--ink-soft); }
+  .code-chip{
+    display:flex; justify-content:space-between; align-items:center; background:var(--highlighter-soft);
+    border:2px dashed var(--ink); border-radius:10px; padding:9px 12px; font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:13.5px; letter-spacing:.06em;
+  }
+  .code-chip span.copy{ font-family:'Inter'; font-weight:600; font-size:11.5px; color:var(--ink-blue); cursor:pointer; }
+  .new-group-row{ display:flex; gap:10px; margin-bottom:20px; }
+  .ghost-btn{
+    flex:1; text-align:center; padding:12px; border-radius:12px; border:2px dashed var(--ink); font-weight:600; font-size:12.5px;
+    color:var(--ink); cursor:pointer;
+  }
+  .inline-form{ display:none; background:var(--paper-deep); border:2px solid var(--ink); border-radius:14px; padding:16px; margin-bottom:20px; }
+  .inline-form.on{ display:block; }
+  .inline-form label{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); display:block; margin-bottom:6px; }
+  .inline-form input{ width:100%; border:2px solid var(--ink); border-radius:10px; padding:10px 12px; font-family:'Inter'; font-size:13.5px; margin-bottom:14px; background:var(--paper); }
+  .inline-form .go-btn{ width:100%; background:var(--ink-blue); color:#fff; border:none; border-radius:999px; padding:11px; font-weight:700; font-family:'Space Grotesk'; font-size:13.5px; cursor:pointer; }
+  .generated-code{ text-align:center; background:var(--highlighter); border:2px solid var(--ink); border-radius:12px; padding:14px; margin-bottom:12px; }
+  .generated-code .big{ font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:22px; letter-spacing:.1em; }
+  .generated-code .hand{ font-size:12px; color:#5B4B10; }
+
+  /* ===== PAINEL DO PROFESSOR ===== */
+  .teacher-tag{
+    display:inline-flex; align-items:center; gap:5px; background:var(--lilac-soft); color:var(--lilac);
+    font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    padding:4px 9px; border-radius:999px; margin-top:6px;
+  }
+  .panel-link{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--lilac); font-weight:600; cursor:pointer; margin-top:8px; display:inline-block; }
+  .alert-banner{
+    display:flex; align-items:center; gap:10px; background:var(--coral-soft); border:2px solid var(--coral);
+    border-radius:14px; padding:12px 14px; margin-bottom:22px;
+  }
+  .alert-banner .hand{ font-size:13.5px; color:#8A3A26; flex:1; }
+  .material-item{
+    display:flex; align-items:center; gap:10px; background:var(--paper); border:2px solid var(--ink); border-radius:12px;
+    padding:10px 12px; margin-bottom:9px; box-shadow:2px 2px 0 var(--ink);
+  }
+  .material-item .m-ic{ font-size:18px; }
+  .material-item .m-name{ font-weight:600; font-size:13px; }
+  .material-item .m-meta{ font-size:11px; color:var(--ink-soft); }
+  .import-row{ display:flex; gap:8px; margin-bottom:24px; }
+  .engage-row{
+    display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px dashed var(--line);
+  }
+  .engage-row:first-of-type{ border-top:none; }
+  .status-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .status-dot.green{ background:var(--mint); }
+  .status-dot.yellow{ background:var(--highlighter); }
+  .status-dot.red{ background:var(--coral); }
+  .engage-info{ flex:1; }
+  .engage-name{ font-weight:600; font-size:13.5px; }
+  .engage-status{ font-size:11.5px; color:var(--ink-soft); }
+  .engage-streak{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft); }
+
+  /* ===== BOAS-VINDAS / LOGIN ===== */
+  .onboard-wrap{ padding:70px 30px 40px; text-align:center; min-height:820px; }
+  .onboard-mascot{
+    width:88px; height:88px; margin:0 auto 22px; border-radius:26px; background:var(--ink-blue);
+    display:flex; align-items:center; justify-content:center; font-size:40px; border:3px solid var(--ink);
+    box-shadow:4px 4px 0 var(--ink); transform:rotate(-3deg);
+  }
+  .onboard-wrap h1{ font-size:22px; margin-bottom:6px; }
+  .onboard-wrap .hand{ color:var(--ink-soft); font-size:14.5px; display:block; margin-bottom:34px; }
+  .onboard-field{ text-align:left; margin-bottom:18px; }
+  .onboard-field label{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); display:block; margin-bottom:7px; }
+  .onboard-field input{
+    width:100%; border:2px solid var(--ink); border-radius:12px; padding:13px 14px; font-family:'Inter';
+    font-size:14.5px; background:var(--paper); box-shadow:2px 2px 0 var(--ink);
+  }
+  .onboard-field .opt{ font-family:'Kalam',cursive; font-size:12px; color:var(--lilac); margin-left:4px; }
+  .onboard-divider{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:#B8AF95; margin:22px 0; display:flex; align-items:center; gap:10px; }
+  .onboard-divider::before, .onboard-divider::after{ content:""; flex:1; height:1px; background:var(--line); }
+  .onboard-btn{
+    width:100%; background:var(--coral); color:#fff; border:2px solid var(--ink); border-radius:999px; padding:15px;
+    font-family:'Space Grotesk'; font-weight:700; font-size:15px; box-shadow:3px 3px 0 var(--ink); cursor:pointer; margin-bottom:14px;
+  }
+  .onboard-skip{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft); text-decoration:underline; cursor:pointer; }
+  .role-toggle{ display:flex; gap:10px; margin-bottom:26px; }
+  .role-pill{
+    flex:1; padding:16px 10px; border-radius:14px; border:2px solid var(--ink); cursor:pointer; text-align:center;
+    background:var(--paper); box-shadow:2px 2px 0 var(--ink);
+  }
+  .role-pill .r-ic{ font-size:24px; display:block; margin-bottom:6px; }
+  .role-pill .r-lbl{ font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; }
+  .role-pill.on{ background:var(--ink-blue); border-color:var(--ink-blue-deep); color:#fff; }
+  .brand-wordmark{ font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:-.01em; margin-bottom:26px; display:flex; align-items:center; justify-content:center; gap:7px; }
+  .brand-wordmark .dot{ color:var(--coral); }
+  .footer-credit{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:#9a9278; margin-top:22px; text-align:center;
+  }
+</style>
+</head>
+<body>
+
+<div class="hint">Bora Estudar — protótipo clicável — use o menu inferior ou os cards pra navegar entre as telas</div>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="spiral">
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  </div>
+
+  <!-- ============ CADASTRO ============ -->
+  <div class="screen active" id="screen-cadastro">
+    <div class="onboard-wrap">
+      <div class="brand-wordmark">Bora Estudar<span class="dot">.</span></div>
+      <div class="onboard-mascot">📘</div>
+      <h1>Vamos criar sua conta</h1>
+      <span class="hand">primeiro, me conta quem é você</span>
+
+      <div class="role-toggle">
+        <div class="role-pill on" id="role-aluno" onclick="setRole('aluno')">
+          <span class="r-ic">🎒</span>
+          <span class="r-lbl">Sou aluno</span>
+        </div>
+        <div class="role-pill" id="role-professor" onclick="setRole('professor')">
+          <span class="r-ic">🧑‍🏫</span>
+          <span class="r-lbl">Sou professor</span>
+        </div>
+      </div>
+
+      <div class="onboard-field">
+        <label>seu nome</label>
+        <input type="text" id="input-nome" placeholder="ex: Diogo Soares">
+      </div>
+
+      <div class="onboard-field">
+        <label id="label-escola">nome da escola que você estuda</label>
+        <input type="text" id="input-escola" placeholder="ex: Colégio Positivo">
+      </div>
+
+      <div class="onboard-field">
+        <label>cidade</label>
+        <input type="text" id="input-cidade" placeholder="ex: Campo Largo - PR">
+      </div>
+
+      <button class="onboard-btn" id="btn-cadastro" onclick="criarConta()">Continuar</button>
+
+      <div class="footer-credit">© 2026 Diogo Soares. Todos os direitos reservados.</div>
+    </div>
+  </div>
+
+  <!-- ============ CÓDIGO DE TURMA/GRUPO ============ -->
+  <div class="screen" id="screen-codigo">
+    <div class="onboard-wrap">
+      <div class="onboard-mascot">🔑</div>
+      <h1>Tem um código?</h1>
+      <span class="hand">se um professor ou amigo te passou um código de turma, é aqui que ele entra</span>
+
+      <div class="onboard-field">
+        <label>código de turma ou grupo <span class="opt">(opcional)</span></label>
+        <input type="text" id="input-codigo" placeholder="ex: KX9F2A" style="text-transform:uppercase;">
+      </div>
+
+      <button class="onboard-btn" id="btn-codigo" onclick="entrarComCodigo()">Entrar</button>
+      <span class="onboard-skip" onclick="pularCodigo()">não tenho código, quero estudar sozinho(a)</span>
+
+      <div class="onboard-divider">como funciona</div>
+      <p class="hand" style="color:var(--ink-soft); font-size:13px; text-align:left; line-height:1.5;">
+        · sem código → você cria suas próprias matérias e estuda no seu ritmo<br><br>
+        · código de <b style="color:var(--ink);">professor</b> → você entra na turma dele, com o material que ele importou<br><br>
+        · código de <b style="color:var(--ink);">amigo</b> → vocês entram no mesmo grupo e disputam o ranking juntos<br><br>
+        · dá pra entrar em novas turmas ou grupos depois, a qualquer momento, lá em "meus grupos"
+      </p>
+    </div>
+  </div>
+
+  <!-- ============ HOME ============ -->
+  <div class="screen" id="screen-home">
+    <div class="sheet">
+      <div class="header">
+        <div class="greet">
+          <span class="eyebrow" style="color:var(--coral);">Bora Estudar</span>
+          <h1 id="home-saudacao">Oi 👋</h1>
+          <span class="hand">bora estudar hoje?</span>
+        </div>
+        <div class="energy-pill" id="home-energia">⚡ 7</div>
+      </div>
+
+      <div class="streak-card">
+        <div class="streak-top">
+          <span class="eyebrow">sequência de estudo</span>
+          <span class="num" id="home-streak">0 dias 🔥</span>
+        </div>
+        <div class="stamps">
+          <div class="stamp done">✓</div>
+          <div class="stamp done">✓</div>
+          <div class="stamp done">✓</div>
+          <div class="stamp done">✓</div>
+          <div class="stamp done">✓</div>
+          <div class="stamp done">✓</div>
+          <div class="stamp today">?</div>
+        </div>
+      </div>
+
+      <div class="subjects">
+        <div class="tab active">Cálculo II</div>
+        <div class="tab c1">Biologia</div>
+        <div class="tab c2">Química</div>
+        <div class="tab c3">Direito Civil</div>
+        <div class="tab add" onclick="go('upload')">+ nova matéria</div>
+      </div>
+
+      <div class="section-title"><h2>Continue de onde parou</h2></div>
+      <div class="journey" onclick="go('quiz')">
+        <div class="countdown">faltam 12 dias</div>
+        <div class="subject-name">Cálculo II</div>
+        <h3>Limites e derivadas</h3>
+        <div class="phases">
+          <div class="phase on"></div><div class="phase on"></div><div class="phase on"></div>
+          <div class="phase"></div><div class="phase"></div>
+        </div>
+        <div class="journey-foot">
+          <span class="hand">fase 3 de 5 · simulado libera amanhã</span>
+          <button class="btn-continue">Continuar</button>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <h2>Quiz do dia</h2>
+        <span class="hand">todo mundo tá jogando</span>
+      </div>
+      <div class="quiz-card" onclick="go('ranking')">
+        <div class="quiz-head">
+          <h3>🧪 Química</h3>
+          <span class="timer">expira em 2h 14m</span>
+        </div>
+        <p class="quiz-sub">Vença hoje e ganhe uma semana de conta PRO de graça.</p>
+        <div class="ranking-row">
+          <div class="medal">🥇</div>
+          <div class="avatar">GU</div>
+          <div><div class="r-name">Guilherme</div><div class="r-meta">nível 17</div></div>
+          <div class="r-score">4/5 · 17,8s</div>
+        </div>
+        <div class="ranking-row">
+          <div class="medal">2</div>
+          <div class="avatar">ED</div>
+          <div><div class="r-name">Eduarda</div><div class="r-meta">nível 5</div></div>
+          <div class="r-score">2/5 · 37,1s</div>
+        </div>
+      </div>
+
+      <div class="upload-cta" onclick="go('upload')">
+        <div class="staple"></div>
+        <h3>Bateu foto de uma matéria nova?</h3>
+        <p>Escolha a matéria e deixa que a gente transforma em quiz, resumo e mapa mental.</p>
+        <button class="upload-btn">📷 Tirar foto do material</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ UPLOAD / NOVA MATÉRIA ============ -->
+  <div class="screen" id="screen-upload">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="go('home')">←</div>
+        <h2>Nova matéria de estudo</h2>
+      </div>
+
+      <div class="step-label">passo 1 · qual matéria é essa?</div>
+      <div class="chips">
+        <div class="chip sel">Matemática</div>
+        <div class="chip">Biologia</div>
+        <div class="chip">Química</div>
+        <div class="chip">Português</div>
+        <div class="chip">História</div>
+        <div class="chip">Direito</div>
+        <div class="chip">+ outra</div>
+      </div>
+
+      <div class="step-label">passo 2 · quando é a prova?</div>
+      <div class="date-field">
+        <span class="hand" style="color:var(--ink-soft); font-size:14px;">data da prova</span>
+        <span class="val">18 / 08 / 2026</span>
+      </div>
+
+      <div class="step-label">passo 3 · de onde vem o material?</div>
+      <div class="source-tabs">
+        <div class="src-tab on" onclick="setSource('foto')">📷 Foto</div>
+        <div class="src-tab" onclick="setSource('arquivo')">📄 Arquivo</div>
+        <div class="src-tab" onclick="setSource('youtube')">▶️ YouTube</div>
+        <div class="src-tab" onclick="setSource('link')">🔗 Site</div>
+      </div>
+
+      <div class="source-panel on" id="src-foto">
+        <div class="camera-frame">
+          <div class="tape"></div>
+          <div class="shutter"></div>
+          <div class="corner-tag">caderno · pág. 42</div>
+        </div>
+        <div class="capture-row">
+          <div class="capture-side">🖼️</div>
+          <div class="capture-side">📄</div>
+        </div>
+      </div>
+
+      <div class="source-panel" id="src-arquivo">
+        <div class="file-box">
+          <span class="ic">📄</span>
+          Solte um PDF ou toque pra escolher um arquivo
+        </div>
+      </div>
+
+      <div class="source-panel" id="src-youtube">
+        <div class="link-box">
+          <div class="ic">▶️</div>
+          <input type="text" placeholder="cole o link do vídeo do YouTube">
+        </div>
+        <p class="hand" style="color:var(--ink-soft); font-size:12.5px; text-align:center; margin:0 0 10px;">a gente puxa a transcrição da aula e transforma em quiz</p>
+      </div>
+
+      <div class="source-panel" id="src-link">
+        <div class="link-box">
+          <div class="ic">🔗</div>
+          <input type="text" placeholder="cole o link do artigo ou site">
+        </div>
+        <p class="hand" style="color:var(--ink-soft); font-size:12.5px; text-align:center; margin:0 0 10px;">funciona junto com a foto do caderno, se quiser combinar as duas fontes</p>
+      </div>
+
+      <button class="create-btn" onclick="go('quiz')">Criar minha jornada de estudo</button>
+    </div>
+  </div>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="screen" id="screen-quiz">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="go('home')">←</div>
+        <h2>Cálculo II</h2>
+      </div>
+      <div class="quiz-topbar">
+        <span class="quiz-progress-label">pergunta 3 de 8</span>
+        <span class="points">⭐ +120 pts</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill"></div></div>
+
+      <div class="question-card">
+        <div class="q-eyebrow">tirada do seu caderno, pág. 12</div>
+        <div class="q-text">Qual é a derivada de f(x) = 3x² + 5x?</div>
+      </div>
+
+      <div class="options">
+        <div class="option"><div class="letter">A</div> f'(x) = 3x + 5</div>
+        <div class="option correct"><div class="letter">B</div> f'(x) = 6x + 5</div>
+        <div class="option wrong"><div class="letter">C</div> f'(x) = 6x + 5x</div>
+        <div class="option"><div class="letter">D</div> f'(x) = 3x²</div>
+      </div>
+
+      <div class="feedback">
+        <span style="font-size:20px;">🎉</span>
+        <span class="hand">Boa! É só aplicar a regra do tombo em cada termo.</span>
+      </div>
+
+      <button class="next-btn" onclick="go('perfil')">Próxima pergunta</button>
+    </div>
+  </div>
+
+  <!-- ============ PERFIL ============ -->
+  <div class="screen" id="screen-perfil">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="go('home')">←</div>
+        <h2>Meu perfil</h2>
+      </div>
+
+      <div class="profile-head">
+        <div class="big-avatar">D</div>
+        <div>
+          <h1>Diogo Soares</h1>
+          <span class="hand">nível 9 · Universidade Positivo</span>
+        </div>
+      </div>
+
+      <div class="xp-row"><span>680 XP</span><span>faltam 320 pra nível 10</span></div>
+      <div class="xp-track"><div class="xp-fill"></div></div>
+
+      <div class="stat-row">
+        <div class="stat-box"><div class="n">6🔥</div><div class="l">sequência</div></div>
+        <div class="stat-box"><div class="n">142</div><div class="l">quizzes feitos</div></div>
+        <div class="stat-box"><div class="n">4</div><div class="l">matérias ativas</div></div>
+      </div>
+
+      <div class="section-title"><h2>Conquistas</h2></div>
+      <div class="badges">
+        <div class="badge"><div class="badge-icon gold">🏅</div><span class="lbl">1º lugar no quiz do dia</span></div>
+        <div class="badge"><div class="badge-icon mint">💯</div><span class="lbl">Simulado sem erros</span></div>
+        <div class="badge"><div class="badge-icon coral">🔥</div><span class="lbl">7 dias seguidos</span></div>
+        <div class="badge"><div class="badge-icon lilac">🧠</div><span class="lbl">5 mapas mentais</span></div>
+        <div class="badge"><div class="badge-icon locked">🌙</div><span class="lbl">Coruja — estudou de madrugada</span></div>
+        <div class="badge"><div class="badge-icon locked">🚀</div><span class="lbl">30 dias seguidos</span></div>
+        <div class="badge"><div class="badge-icon locked">👥</div><span class="lbl">Convidou 3 amigos</span></div>
+        <div class="badge"><div class="badge-icon locked">📚</div><span class="lbl">10 matérias criadas</span></div>
+      </div>
+
+      <div class="footer-credit">Bora Estudar · © 2026 Diogo Soares. Todos os direitos reservados.</div>
+    </div>
+  </div>
+
+  <!-- ============ RANKING ============ -->
+  <div class="screen" id="screen-ranking">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="go('home')">←</div>
+        <h2>Ranking</h2>
+        <span class="group-link-btn" onclick="go('grupos')">👥 meus grupos</span>
+      </div>
+
+      <div class="scope-toggle">
+        <div class="scope-pill on">Geral</div>
+        <div class="scope-pill">Minha turma</div>
+      </div>
+
+      <div class="rank-tabs">
+        <div class="tab active">Química</div>
+        <div class="tab c1">Cálculo II</div>
+        <div class="tab c2">Biologia</div>
+      </div>
+
+      <div class="rank-list">
+        <div class="rank-item"><div class="rank-pos">1º</div><div class="avatar">GU</div><div><div class="r-name">Guilherme</div><div class="r-meta">nível 17 · 4/5 acertos</div></div><div class="r-score">17,8s</div></div>
+        <div class="rank-item"><div class="rank-pos">2º</div><div class="avatar">ED</div><div><div class="r-name">Eduarda</div><div class="r-meta">nível 5 · 2/5 acertos</div></div><div class="r-score">37,1s</div></div>
+        <div class="rank-item me"><div class="rank-pos">3º</div><div class="avatar">D</div><div><div class="r-name">Você</div><div class="r-meta">nível 9 · 2/5 acertos</div></div><div class="r-score">41,4s</div></div>
+        <div class="rank-item"><div class="rank-pos">4º</div><div class="avatar">FS</div><div><div class="r-name">Faby Salazar</div><div class="r-meta">nível 7 · 3/5 acertos</div></div><div class="r-score">130,7s</div></div>
+        <div class="rank-item"><div class="rank-pos">5º</div><div class="avatar">MC</div><div><div class="r-name">Maria Claudia</div><div class="r-meta">nível 1 · 3/5 acertos</div></div><div class="r-score">142,8s</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GRUPOS ============ -->
+  <div class="screen" id="screen-grupos">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="go('ranking')">←</div>
+        <h2>Grupos de estudo</h2>
+      </div>
+
+      <div class="step-label">seus grupos</div>
+      <div class="group-card">
+        <div class="group-card-top">
+          <div>
+            <h3>Turma de Cálculo</h3>
+            <span class="hand">Cálculo II · prova em 12 dias</span>
+            <span class="teacher-tag">👑 você é o professor</span>
+          </div>
+        </div>
+        <div class="member-stack">
+          <div class="avatar">GU</div>
+          <div class="avatar">ED</div>
+          <div class="avatar">D</div>
+          <div class="more">+4</div>
+        </div>
+        <div class="code-chip">KX9F2A <span class="copy" onclick="alert('Código copiado: KX9F2A')">copiar código</span></div>
+        <span class="panel-link" onclick="go('painel')">📊 abrir painel do professor →</span>
+      </div>
+
+      <div class="group-card">
+        <div class="group-card-top">
+          <div>
+            <h3>Vestibular 2027</h3>
+            <span class="hand">Biologia · grupo aberto</span>
+          </div>
+        </div>
+        <div class="member-stack">
+          <div class="avatar">MC</div>
+          <div class="avatar">FS</div>
+          <div class="more">+11</div>
+        </div>
+        <div class="code-chip">BIO27X <span class="copy" onclick="alert('Código copiado: BIO27X')">copiar código</span></div>
+      </div>
+
+      <div class="new-group-row">
+        <div class="ghost-btn" onclick="toggleForm('criar')">+ criar grupo</div>
+        <div class="ghost-btn" onclick="toggleForm('entrar')">🔑 entrar com código</div>
+      </div>
+
+      <div class="inline-form" id="form-criar">
+        <label>nome do grupo</label>
+        <input type="text" placeholder="ex: Turma de Química - 3ºB">
+        <label>matéria</label>
+        <input type="text" placeholder="ex: Química">
+        <div class="generated-code">
+          <div class="big">7QW3ZP</div>
+          <div class="hand">esse vai ser o código do grupo</div>
+        </div>
+        <button class="go-btn" onclick="go('grupos')">Criar e compartilhar</button>
+      </div>
+
+      <div class="inline-form" id="form-entrar">
+        <label>código do grupo</label>
+        <input type="text" placeholder="ex: KX9F2A" style="text-transform:uppercase;">
+        <button class="go-btn" onclick="go('grupos')">Entrar no grupo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAINEL DO PROFESSOR ============ -->
+  <div class="screen" id="screen-painel">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="go('grupos')">←</div>
+        <div>
+          <h2>Turma de Cálculo</h2>
+          <span class="hand" style="color:var(--ink-soft); font-size:12px;">7 alunos · código KX9F2A</span>
+        </div>
+      </div>
+
+      <div class="alert-banner">
+        <span style="font-size:20px;">⚠️</span>
+        <span class="hand">3 alunos não estudam há mais de 3 dias. Que tal um lembrete?</span>
+      </div>
+
+      <div class="section-title">
+        <h2>Material da turma</h2>
+        <span class="hand">visível pra todo mundo</span>
+      </div>
+      <div class="material-item">
+        <span class="m-ic">📄</span>
+        <div style="flex:1;">
+          <div class="m-name">Lista de exercícios — Limites.pdf</div>
+          <div class="m-meta">importado por você · 2 dias atrás</div>
+        </div>
+      </div>
+      <div class="material-item">
+        <span class="m-ic">📷</span>
+        <div style="flex:1;">
+          <div class="m-name">Caderno — Regras de derivação</div>
+          <div class="m-meta">importado por Eduarda · ontem</div>
+        </div>
+      </div>
+      <div class="import-row">
+        <div class="ghost-btn" style="flex:1;" onclick="alert('Abrir seletor de PDF')">+ importar PDF</div>
+      </div>
+
+      <div class="section-title"><h2>Engajamento da turma</h2></div>
+      <div class="quiz-card" style="cursor:default;">
+        <div class="engage-row">
+          <div class="status-dot green"></div>
+          <div class="avatar">GU</div>
+          <div class="engage-info"><div class="engage-name">Guilherme</div><div class="engage-status">estudou hoje · nível 17</div></div>
+          <div class="engage-streak">9🔥</div>
+        </div>
+        <div class="engage-row">
+          <div class="status-dot green"></div>
+          <div class="avatar">ED</div>
+          <div class="engage-info"><div class="engage-name">Eduarda</div><div class="engage-status">estudou hoje · nível 5</div></div>
+          <div class="engage-streak">3🔥</div>
+        </div>
+        <div class="engage-row">
+          <div class="status-dot yellow"></div>
+          <div class="avatar">FS</div>
+          <div class="engage-info"><div class="engage-name">Faby Salazar</div><div class="engage-status">estudou há 2 dias</div></div>
+          <div class="engage-streak">0🔥</div>
+        </div>
+        <div class="engage-row">
+          <div class="status-dot red"></div>
+          <div class="avatar">MC</div>
+          <div class="engage-info"><div class="engage-name">Maria Claudia</div><div class="engage-status">sumiu há 6 dias</div></div>
+          <div class="engage-streak">0🔥</div>
+        </div>
+        <div class="engage-row">
+          <div class="status-dot red"></div>
+          <div class="avatar">L</div>
+          <div class="engage-info"><div class="engage-name">Lolverzzz</div><div class="engage-status">nunca abriu a turma</div></div>
+          <div class="engage-streak">0🔥</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="navbar" id="navbar">
+    <button class="nav-item" data-s="home" onclick="go('home')"><div class="nav-icon">🏠</div>Início</button>
+    <button class="nav-item" data-s="upload" onclick="go('upload')"><div class="nav-icon">📚</div>Matérias</button>
+    <button class="nav-item" data-s="ranking" onclick="go('ranking')"><div class="nav-icon">🏆</div>Ranking</button>
+    <button class="nav-item" data-s="perfil" onclick="go('perfil')"><div class="nav-icon">👤</div>Perfil</button>
+  </div>
+</div>
+
+<script>
+  function go(name){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    document.getElementById('screen-' + name).scrollTop = 0;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.s === name));
+    document.getElementById('navbar').style.display = (name === 'boasvindas' || name === 'cadastro' || name === 'codigo') ? 'none' : 'flex';
+  }
+
+  function setRole(role){
+    papelSelecionado = role;
+    document.getElementById('role-aluno').classList.toggle('on', role === 'aluno');
+    document.getElementById('role-professor').classList.toggle('on', role === 'professor');
+    document.getElementById('label-escola').textContent = role === 'professor' ? 'nome da escola que você trabalha' : 'nome da escola que você estuda';
+  }
+
+  function toggleForm(type){
+    const criar = document.getElementById('form-criar');
+    const entrar = document.getElementById('form-entrar');
+    if(type === 'criar'){ criar.classList.toggle('on'); entrar.classList.remove('on'); }
+    else { entrar.classList.toggle('on'); criar.classList.remove('on'); }
+  }
+
+  function setSource(type){
+    document.querySelectorAll('.src-tab').forEach(t => t.classList.remove('on'));
+    document.querySelectorAll('.source-panel').forEach(p => p.classList.remove('on'));
+    event.currentTarget.classList.add('on');
+    document.getElementById('src-' + type).classList.add('on');
+  }
+
+  /* ============ SUPABASE ============ */
+  const SUPABASE_URL = 'https://hkaqsrqxvvdzniaeklzd.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYXFzcnF4dnZkem5pYWVrbHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwMjcxOTgsImV4cCI6MjA5OTYwMzE5OH0.9WfRq5e4fEw2KOvYBk40-RdEeNjdqqhLERRiyV9lJMk';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let papelSelecionado = 'aluno';
+
+  function gerarCodigo(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for(let i=0;i<6;i++) out += chars[Math.floor(Math.random()*chars.length)];
+    return out;
+  }
+
+  async function criarConta(){
+    const nome = document.getElementById('input-nome').value.trim();
+    const escola = document.getElementById('input-escola').value.trim();
+    const cidade = document.getElementById('input-cidade').value.trim();
+    if(!nome){ alert('digite seu nome pra continuar'); return; }
+
+    const btn = document.getElementById('btn-cadastro');
+    btn.textContent = 'Criando...'; btn.style.opacity = '.7';
+
+    try{
+      const { data: authData, error: authErr } = await sb.auth.signInAnonymously();
+      if(authErr) throw authErr;
+
+      const { data: usuario, error: insErr } = await sb.from('be_usuarios')
+        .insert({ auth_user_id: authData.user.id, nome, papel: papelSelecionado, escola, cidade })
+        .select().single();
+      if(insErr) throw insErr;
+
+      localStorage.setItem('be_usuario_id', usuario.id);
+      go('codigo');
+    }catch(err){
+      alert('Deu ruim ao criar sua conta: ' + err.message);
+    }finally{
+      btn.textContent = 'Continuar'; btn.style.opacity = '1';
+    }
+  }
+
+  async function entrarComCodigo(){
+    const codigo = document.getElementById('input-codigo').value.trim().toUpperCase();
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    if(!codigo){ go('home'); carregarHome(); return; }
+
+    const btn = document.getElementById('btn-codigo');
+    btn.textContent = 'Entrando...'; btn.style.opacity = '.7';
+    try{
+      const { data: grupo, error } = await sb.from('be_grupos').select('id,nome').eq('codigo', codigo).maybeSingle();
+      if(error) throw error;
+      if(!grupo){ alert('Código não encontrado. Confere com quem te passou.'); return; }
+
+      const { error: memErr } = await sb.from('be_grupo_membros').insert({ grupo_id: grupo.id, usuario_id: usuarioId });
+      if(memErr && memErr.code !== '23505') throw memErr; // 23505 = já é membro, ok
+
+      alert('Você entrou em: ' + grupo.nome + ' 🎉');
+      go('home'); carregarHome();
+    }catch(err){
+      alert('Deu ruim ao entrar no grupo: ' + err.message);
+    }finally{
+      btn.textContent = 'Entrar'; btn.style.opacity = '1';
+    }
+  }
+
+  function pularCodigo(){ go('home'); carregarHome(); }
+
+  async function carregarHome(){
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    if(!usuarioId) return;
+    const { data: usuario, error } = await sb.from('be_usuarios').select('*').eq('id', usuarioId).single();
+    if(error || !usuario) return;
+    document.getElementById('home-saudacao').textContent = 'Oi, ' + usuario.nome.split(' ')[0] + ' 👋';
+    document.getElementById('home-energia').textContent = '⚡ ' + usuario.energia;
+    document.getElementById('home-streak').textContent = usuario.streak_atual + ' dias 🔥';
+  }
+
+  /* ao carregar a página: se já tem conta salva no aparelho, pula direto pra home */
+  (async function boot(){
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    if(usuarioId){
+      go('home');
+      carregarHome();
+    } else {
+      go('cadastro');
+    }
+  })();
+</script>
+
+</body>
+</html>
