@@ -631,12 +631,17 @@
       </div>
 
       <div class="source-panel on" id="src-foto">
-        <div class="camera-frame" id="camera-frame" onclick="document.getElementById('input-foto').click()">
+        <div class="camera-frame" id="camera-frame" onclick="document.getElementById('input-camera').click()">
           <div class="shutter" id="foto-placeholder"></div>
           <img id="foto-preview" style="display:none; width:100%; height:100%; object-fit:cover;">
-          <div class="corner-tag" id="foto-status">toque pra escolher a foto</div>
+          <div class="corner-tag" id="foto-status">toque pra tirar a foto</div>
         </div>
-        <input type="file" id="input-foto" accept="image/*" capture="environment" style="display:none" onchange="fotoSelecionada(event)">
+        <div class="capture-row">
+          <div class="capture-side" title="Usar câmera" onclick="document.getElementById('input-camera').click()">📷</div>
+          <div class="ghost-btn" style="flex:0 0 auto; padding:12px 20px;" onclick="document.getElementById('input-galeria').click()">🖼️ Escolher da galeria / arquivos</div>
+        </div>
+        <input type="file" id="input-camera" accept="image/*" capture="environment" style="display:none" onchange="fotoSelecionada(event)">
+        <input type="file" id="input-galeria" accept="image/*" style="display:none" onchange="fotoSelecionada(event)">
       </div>
 
       <div class="source-panel" id="src-arquivo">
@@ -770,7 +775,7 @@
       <div class="topbar">
         <div class="back-btn" onclick="go('home')">←</div>
         <h2>Ranking</h2>
-        <span class="group-link-btn" onclick="go('grupos')">👥 meus grupos</span>
+        <span class="group-link-btn" onclick="verGrupos()">👥 meus grupos</span>
       </div>
 
       <div class="scope-toggle">
@@ -803,37 +808,8 @@
       </div>
 
       <div class="step-label">seus grupos</div>
-      <div class="group-card">
-        <div class="group-card-top">
-          <div>
-            <h3>Turma de Cálculo</h3>
-            <span class="hand">Cálculo II · prova em 12 dias</span>
-            <span class="teacher-tag">👑 você é o professor</span>
-          </div>
-        </div>
-        <div class="member-stack">
-          <div class="avatar">GU</div>
-          <div class="avatar">ED</div>
-          <div class="avatar">D</div>
-          <div class="more">+4</div>
-        </div>
-        <div class="code-chip">KX9F2A <span class="copy" onclick="alert('Código copiado: KX9F2A')">copiar código</span></div>
-        <span class="panel-link" onclick="go('painel')">📊 abrir painel do professor →</span>
-      </div>
-
-      <div class="group-card">
-        <div class="group-card-top">
-          <div>
-            <h3>Vestibular 2027</h3>
-            <span class="hand">Biologia · grupo aberto</span>
-          </div>
-        </div>
-        <div class="member-stack">
-          <div class="avatar">MC</div>
-          <div class="avatar">FS</div>
-          <div class="more">+11</div>
-        </div>
-        <div class="code-chip">BIO27X <span class="copy" onclick="alert('Código copiado: BIO27X')">copiar código</span></div>
+      <div id="lista-grupos">
+        <p class="hand" style="color:var(--ink-soft); text-align:center;">carregando...</p>
       </div>
 
       <div class="new-group-row">
@@ -843,20 +819,16 @@
 
       <div class="inline-form" id="form-criar">
         <label>nome do grupo</label>
-        <input type="text" placeholder="ex: Turma de Química - 3ºB">
+        <input type="text" id="input-nome-grupo" placeholder="ex: Turma de Química - 3ºB">
         <label>matéria</label>
-        <input type="text" placeholder="ex: Química">
-        <div class="generated-code">
-          <div class="big">7QW3ZP</div>
-          <div class="hand">esse vai ser o código do grupo</div>
-        </div>
-        <button class="go-btn" onclick="go('grupos')">Criar e compartilhar</button>
+        <input type="text" id="input-materia-grupo" placeholder="ex: Química">
+        <button class="go-btn" id="btn-criar-grupo" onclick="criarGrupoReal()">Criar e gerar código</button>
       </div>
 
       <div class="inline-form" id="form-entrar">
         <label>código do grupo</label>
-        <input type="text" placeholder="ex: KX9F2A" style="text-transform:uppercase;">
-        <button class="go-btn" onclick="go('grupos')">Entrar no grupo</button>
+        <input type="text" id="input-codigo-grupo" placeholder="ex: KX9F2A" style="text-transform:uppercase;">
+        <button class="go-btn" id="btn-entrar-grupo" onclick="entrarComCodigoNoGrupo()">Entrar no grupo</button>
       </div>
     </div>
   </div>
@@ -978,6 +950,110 @@
     else { entrar.classList.toggle('on'); criar.classList.remove('on'); }
   }
 
+  /* ============ GRUPOS ============ */
+  function verGrupos(){ go('grupos'); carregarGrupos(); }
+
+  async function carregarGrupos(){
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    const lista = document.getElementById('lista-grupos');
+    if(!usuarioId){ lista.innerHTML = ''; return; }
+
+    const { data: membros, error } = await sb
+      .from('be_grupo_membros')
+      .select('papel_no_grupo, grupo:be_grupos(id, nome, materia, tipo, codigo)')
+      .eq('usuario_id', usuarioId);
+
+    if(error){ lista.innerHTML = `<p class="hand" style="color:var(--coral); text-align:center;">erro ao carregar grupos</p>`; return; }
+    if(!membros || membros.length === 0){
+      lista.innerHTML = `<p class="hand" style="color:var(--ink-soft); text-align:center;">você ainda não participa de nenhum grupo</p>`;
+      return;
+    }
+
+    lista.innerHTML = '';
+    for(const m of membros){
+      const g = m.grupo;
+      if(!g) continue;
+      const { count } = await sb.from('be_grupo_membros').select('*', { count: 'exact', head: true }).eq('grupo_id', g.id);
+      const card = document.createElement('div');
+      card.className = 'group-card';
+      card.innerHTML = `
+        <div class="group-card-top">
+          <div>
+            <h3>${g.nome}</h3>
+            <span class="hand">${g.materia || 'sem matéria definida'} · ${g.tipo === 'turma_professor' ? 'turma' : 'grupo de amigos'}</span>
+            ${m.papel_no_grupo === 'admin' ? '<span class="teacher-tag">👑 você é o admin</span>' : ''}
+          </div>
+        </div>
+        <div class="hand" style="font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;">${count || 1} membro${(count||1) > 1 ? 's' : ''}</div>
+        <div class="code-chip">${g.codigo} <span class="copy" onclick="navigator.clipboard.writeText('${g.codigo}'); alert('Código copiado: ${g.codigo}')">copiar código</span></div>
+      `;
+      lista.appendChild(card);
+    }
+  }
+
+  async function criarGrupoReal(){
+    const nome = document.getElementById('input-nome-grupo').value.trim();
+    const materia = document.getElementById('input-materia-grupo').value.trim();
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    if(!nome){ alert('dá um nome pro grupo'); return; }
+    if(!usuarioId){ alert('sua conta não carregou direito, recarrega a página'); return; }
+
+    const btn = document.getElementById('btn-criar-grupo');
+    btn.textContent = 'Criando...'; btn.disabled = true;
+
+    try{
+      const { data: usuario } = await sb.from('be_usuarios').select('papel').eq('id', usuarioId).single();
+      const tipo = (usuario && usuario.papel === 'professor') ? 'turma_professor' : 'grupo_amigos';
+      const codigo = gerarCodigo();
+
+      const { data: grupo, error: grupoErr } = await sb.from('be_grupos')
+        .insert({ nome, materia, tipo, dono_id: usuarioId, codigo })
+        .select().single();
+      if(grupoErr) throw grupoErr;
+
+      const { error: membroErr } = await sb.from('be_grupo_membros')
+        .insert({ grupo_id: grupo.id, usuario_id: usuarioId, papel_no_grupo: 'admin' });
+      if(membroErr) throw membroErr;
+
+      alert(`Grupo criado! Código: ${codigo}`);
+      document.getElementById('input-nome-grupo').value = '';
+      document.getElementById('input-materia-grupo').value = '';
+      document.getElementById('form-criar').classList.remove('on');
+      carregarGrupos();
+    }catch(err){
+      alert('Deu ruim ao criar o grupo: ' + err.message);
+    }finally{
+      btn.textContent = 'Criar e gerar código'; btn.disabled = false;
+    }
+  }
+
+  async function entrarComCodigoNoGrupo(){
+    const codigo = document.getElementById('input-codigo-grupo').value.trim().toUpperCase();
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    if(!codigo){ alert('digita o código do grupo'); return; }
+
+    const btn = document.getElementById('btn-entrar-grupo');
+    btn.textContent = 'Entrando...'; btn.disabled = true;
+
+    try{
+      const { data: grupo, error } = await sb.from('be_grupos').select('id,nome').eq('codigo', codigo).maybeSingle();
+      if(error) throw error;
+      if(!grupo){ alert('Código não encontrado.'); return; }
+
+      const { error: memErr } = await sb.from('be_grupo_membros').insert({ grupo_id: grupo.id, usuario_id: usuarioId });
+      if(memErr && memErr.code !== '23505') throw memErr;
+
+      alert('Você entrou em: ' + grupo.nome + ' 🎉');
+      document.getElementById('input-codigo-grupo').value = '';
+      document.getElementById('form-entrar').classList.remove('on');
+      carregarGrupos();
+    }catch(err){
+      alert('Deu ruim ao entrar no grupo: ' + err.message);
+    }finally{
+      btn.textContent = 'Entrar no grupo'; btn.disabled = false;
+    }
+  }
+
   function setSource(type){
     document.querySelectorAll('.src-tab').forEach(t => t.classList.remove('on'));
     document.querySelectorAll('.source-panel').forEach(p => p.classList.remove('on'));
@@ -1067,7 +1143,13 @@
     const usuarioId = localStorage.getItem('be_usuario_id');
     if(!usuarioId) return;
     const { data: usuario, error } = await sb.from('be_usuarios').select('*').eq('id', usuarioId).single();
-    if(error || !usuario) return;
+    if(error || !usuario){
+      /* conta antiga não existe mais no banco (reset) — limpa e manda pro cadastro */
+      localStorage.removeItem('be_usuario_id');
+      localStorage.removeItem('be_device_id');
+      location.reload();
+      return;
+    }
     document.getElementById('home-saudacao').textContent = 'Oi, ' + usuario.nome.split(' ')[0] + ' 👋';
     document.getElementById('home-energia').textContent = '⚡ ' + usuario.energia;
     document.getElementById('home-streak').textContent = usuario.streak_atual + ' dias 🔥';
