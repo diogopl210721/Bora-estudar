@@ -113,7 +113,7 @@
   /* ===== HOME ===== */
   .header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
   .greet h1{ font-size:23px; }
-  .greet span.hand{ display:block; color:var(--ink-blue); font-size:15px; margin-top:2px; transform:rotate(-1deg); }
+  .greet span.hand{ display:block; color:var(--ink-blue); font-size:15px; margin-top:2px; transform:none; }
   .energy-pill{
     display:flex; align-items:center; gap:6px;
     background:var(--paper); border:2px solid var(--ink); border-radius:999px;
@@ -132,19 +132,19 @@
     display:flex; align-items:center; justify-content:center; font-size:15px;
     border:2px dashed var(--line); color:var(--ink-soft);
   }
-  .stamp.done{ background:var(--coral); border:2px solid var(--ink); color:#fff; transform:rotate(-6deg); box-shadow:1px 1px 0 var(--ink); }
+  .stamp.done{ background:var(--coral); border:2px solid var(--ink); color:#fff; transform:rotate(-2deg); box-shadow:1px 1px 0 rgba(32,38,47,.5); }
   .stamp.today{ border:2px solid var(--ink-blue); color:var(--ink-blue); background:var(--highlighter-soft); }
 
   .subjects{ display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; margin-bottom:26px; scrollbar-width:none; }
   .subjects::-webkit-scrollbar{display:none;}
   .tab{
     flex:0 0 auto; padding:9px 14px; border-radius:8px; font-weight:600; font-size:13.5px;
-    border:2px solid var(--ink); white-space:nowrap; transform:rotate(-1.5deg); box-shadow:2px 2px 0 var(--ink);
+    border:2px solid var(--ink); white-space:nowrap; transform:none; box-shadow:2px 2px 0 rgba(32,38,47,.35);
     cursor:pointer;
   }
-  .tab:nth-child(2){ transform:rotate(1.5deg); }
-  .tab:nth-child(3){ transform:rotate(-1deg); }
-  .tab:nth-child(4){ transform:rotate(1deg); }
+  .tab:nth-child(2){ transform:none; }
+  .tab:nth-child(3){ transform:none; }
+  .tab:nth-child(4){ transform:none; }
   .tab.active{ background:var(--ink-blue); color:#fff; border-color:var(--ink-blue-deep); }
   .tab.c1{ background:var(--mint-soft); }
   .tab.c2{ background:var(--highlighter-soft); }
@@ -188,11 +188,10 @@
   .r-meta{ font-size:11.5px; color:var(--ink-soft); }
   .r-score{ margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink-soft); }
 
-  .upload-cta{ position:relative; background:var(--coral); color:#fff; border-radius:16px; padding:18px 20px; text-align:center; margin-bottom:10px; transform:rotate(-0.6deg); box-shadow:3px 4px 0 var(--ink); cursor:pointer; }
+  .upload-cta{ position:relative; background:var(--coral); color:#fff; border-radius:16px; padding:18px 20px; text-align:center; margin-bottom:10px; box-shadow:2px 3px 0 rgba(32,38,47,.35); cursor:pointer; }
   .upload-cta h3{ font-size:16px; margin-bottom:4px; }
   .upload-cta p{ margin:0 0 14px; font-size:12.5px; opacity:.9; font-family:'Inter'; }
   .upload-btn{ background:var(--ink); color:#fff; border:none; padding:11px 22px; border-radius:999px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; display:inline-flex; align-items:center; gap:8px; pointer-events:none; }
-  .staple{ position:absolute; top:-6px; left:50%; transform:translateX(-50%) rotate(3deg); width:26px; height:12px; border:2px solid #8b8b8b; border-bottom:none; border-radius:4px 4px 0 0; }
 
   /* ===== TOPBAR (non-home screens) ===== */
   .topbar{ display:flex; align-items:center; gap:12px; margin-bottom:24px; }
@@ -218,11 +217,7 @@
   .camera-frame{
     position:relative; background:#1B1B1F; border-radius:16px; height:230px; margin-bottom:10px;
     display:flex; align-items:center; justify-content:center; overflow:hidden;
-    border:3px solid var(--ink); transform:rotate(0.6deg); box-shadow:4px 5px 0 rgba(32,38,47,.25);
-  }
-  .camera-frame .tape{
-    position:absolute; top:-10px; left:20px; width:64px; height:22px; background:rgba(245,201,61,.85);
-    transform:rotate(-8deg); box-shadow:0 2px 4px rgba(0,0,0,.15);
+    border:2px solid var(--ink); box-shadow:3px 4px 0 rgba(32,38,47,.22);
   }
   .camera-frame .corner-tag{
     position:absolute; bottom:10px; left:10px; background:rgba(255,255,255,.12); color:#fff;
@@ -270,7 +265,7 @@
   .big-avatar{
     width:64px; height:64px; border-radius:16px; background:var(--lilac-soft); border:2px solid var(--ink);
     display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; color:var(--lilac);
-    transform:rotate(-2deg); box-shadow:2px 2px 0 var(--ink);
+    box-shadow:2px 2px 0 rgba(32,38,47,.3);
   }
   .profile-head h1{ font-size:19px; }
   .profile-head .hand{ color:var(--ink-soft); font-size:13px; }
@@ -278,7 +273,7 @@
   .xp-track{ height:10px; background:var(--paper-deep); border:2px solid var(--ink); border-radius:6px; overflow:hidden; margin-bottom:24px; }
   .xp-fill{ height:100%; width:68%; background:linear-gradient(90deg, var(--highlighter), var(--coral)); }
   .stat-row{ display:flex; gap:10px; margin-bottom:26px; }
-  .stat-box{ flex:1; background:var(--paper); border:2px solid var(--ink); border-radius:14px; padding:12px; text-align:center; box-shadow:2px 2px 0 var(--ink); }
+  .stat-box{ flex:1; background:var(--paper); border:2px solid var(--ink); border-radius:14px; padding:12px; text-align:center; box-shadow:2px 2px 0 rgba(32,38,47,.3); }
   .stat-box .n{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; }
   .stat-box .l{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
   .badges{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:10px; }
@@ -327,7 +322,7 @@
   .source-panel.on{ display:block; }
   .link-box{
     position:relative; background:#1B1B1F; border-radius:16px; padding:26px 20px; margin-bottom:10px;
-    border:3px solid var(--ink); transform:rotate(-0.5deg); box-shadow:4px 5px 0 rgba(32,38,47,.25); text-align:center;
+    border:3px solid var(--ink); box-shadow:3px 4px 0 rgba(32,38,47,.22); text-align:center;
   }
   .link-box .ic{ font-size:30px; margin-bottom:10px; }
   .link-box input{
@@ -413,7 +408,7 @@
   .onboard-mascot{
     width:88px; height:88px; margin:0 auto 22px; border-radius:26px; background:var(--ink-blue);
     display:flex; align-items:center; justify-content:center; font-size:40px; border:3px solid var(--ink);
-    box-shadow:4px 4px 0 var(--ink); transform:rotate(-3deg);
+    box-shadow:4px 4px 0 var(--ink); transform:none;
   }
   .onboard-wrap h1{ font-size:22px; margin-bottom:6px; }
   .onboard-wrap .hand{ color:var(--ink-soft); font-size:14.5px; display:block; margin-bottom:34px; }
@@ -444,6 +439,12 @@
   .footer-credit{
     font-family:'IBM Plex Mono',monospace; font-size:11px; color:#9a9278; margin-top:22px; text-align:center;
   }
+  .persistent-credit{
+    position:absolute; left:0; right:0; bottom:78px; z-index:25;
+    text-align:center; font-family:'IBM Plex Mono',monospace; font-size:10px; color:#9a9278;
+    background:var(--paper); padding:6px 0; border-top:1px solid var(--line);
+  }
+  .persistent-credit.no-nav{ bottom:0; border-top:none; background:transparent; padding:14px 0 18px; }
   .logo-img{ max-width:220px; width:70%; height:auto; margin:0 auto 22px; display:block; filter:drop-shadow(3px 4px 0 rgba(32,38,47,.25)); }
   .logo-img.small{ max-width:130px; margin-bottom:18px; }
   .home-logo{ height:22px; width:auto; margin-bottom:2px; }
@@ -493,8 +494,6 @@
       </div>
 
       <button class="onboard-btn" id="btn-cadastro" onclick="criarConta()">Continuar</button>
-
-      <div class="footer-credit">© 2026 Diogo Soares. Todos os direitos reservados.</div>
     </div>
   </div>
 
@@ -599,7 +598,6 @@
       </div>
 
       <div class="upload-cta" onclick="go('upload')">
-        <div class="staple"></div>
         <h3>Bateu foto de uma matéria nova?</h3>
         <p>Escolha a matéria e deixa que a gente transforma em quiz, resumo e mapa mental.</p>
         <button class="upload-btn">📷 Tirar foto do material</button>
@@ -642,7 +640,6 @@
 
       <div class="source-panel on" id="src-foto">
         <div class="camera-frame">
-          <div class="tape"></div>
           <div class="shutter"></div>
           <div class="corner-tag">caderno · pág. 42</div>
         </div>
@@ -750,7 +747,7 @@
         <div class="badge"><div class="badge-icon locked">📚</div><span class="lbl">10 matérias criadas</span></div>
       </div>
 
-      <div class="footer-credit">Bora Estudar · © 2026 Diogo Soares. Todos os direitos reservados.</div>
+      <div class="ghost-btn" style="border-color:var(--coral); color:var(--coral); margin-top:6px;" onclick="sair()">🚪 Sair da conta</div>
     </div>
   </div>
 
@@ -925,6 +922,8 @@
     </div>
   </div>
 
+  <div class="persistent-credit" id="persistentCredit">© 2026 Diogo Soares · Bora Estudar</div>
+
   <div class="navbar" id="navbar">
     <button class="nav-item" data-s="home" onclick="go('home')"><div class="nav-icon">🏠</div>Início</button>
     <button class="nav-item" data-s="upload" onclick="go('upload')"><div class="nav-icon">📚</div>Matérias</button>
@@ -939,7 +938,17 @@
     document.getElementById('screen-' + name).classList.add('active');
     document.getElementById('screen-' + name).scrollTop = 0;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.s === name));
-    document.getElementById('navbar').style.display = (name === 'boasvindas' || name === 'cadastro' || name === 'codigo') ? 'none' : 'flex';
+    const semNav = (name === 'boasvindas' || name === 'cadastro' || name === 'codigo');
+    document.getElementById('navbar').style.display = semNav ? 'none' : 'flex';
+    document.getElementById('persistentCredit').classList.toggle('no-nav', semNav);
+  }
+
+  function sair(){
+    const aviso = 'Sair vai desconectar essa conta desse aparelho. Como ainda não tem login por e-mail nessa versão, não dá pra entrar de volta nessa mesma conta depois — só criar uma conta nova. Quer sair mesmo assim?';
+    if(!confirm(aviso)) return;
+    localStorage.removeItem('be_usuario_id');
+    localStorage.removeItem('be_device_id');
+    location.reload();
   }
 
   function setRole(role){
