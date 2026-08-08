@@ -1054,7 +1054,9 @@
     }
   }
 
+  let fonteAtual = 'foto';
   function setSource(type){
+    fonteAtual = type;
     document.querySelectorAll('.src-tab').forEach(t => t.classList.remove('on'));
     document.querySelectorAll('.source-panel').forEach(p => p.classList.remove('on'));
     event.currentTarget.classList.add('on');
@@ -1196,7 +1198,22 @@
     const dataProva = document.getElementById('input-data-prova').value;
     const btn = document.getElementById('btn-criar-jornada');
 
-    if(!fotoBase64){ alert('Tira ou escolhe uma foto do material primeiro.'); return; }
+    let payloadExtra = {};
+    if(fonteAtual === 'foto'){
+      if(!fotoBase64){ alert('Tira ou escolhe uma foto do material primeiro.'); return; }
+      payloadExtra = { tipo_fonte: 'foto', imagem_base64: fotoBase64 };
+    } else if(fonteAtual === 'youtube'){
+      const link = document.getElementById('input-youtube').value.trim();
+      if(!link){ alert('Cola o link do vídeo do YouTube primeiro.'); return; }
+      payloadExtra = { tipo_fonte: 'youtube', url: link };
+    } else if(fonteAtual === 'link'){
+      const link = document.getElementById('input-link').value.trim();
+      if(!link){ alert('Cola o link do site primeiro.'); return; }
+      payloadExtra = { tipo_fonte: 'link', url: link };
+    } else {
+      alert('Upload de PDF ainda não está disponível nessa versão — usa foto, YouTube ou site por enquanto.');
+      return;
+    }
 
     const usuarioId = localStorage.getItem('be_usuario_id');
     if(!usuarioId){ alert('Sua conta não carregou direito, recarrega a página.'); return; }
@@ -1219,8 +1236,7 @@
         },
         body: JSON.stringify({
           materia_id: materia.id,
-          tipo_fonte: 'foto',
-          imagem_base64: fotoBase64,
+          ...payloadExtra,
         }),
       });
 
