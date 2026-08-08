@@ -607,20 +607,19 @@
       </div>
 
       <div class="step-label">passo 1 · qual matéria é essa?</div>
-      <div class="chips">
-        <div class="chip sel">Matemática</div>
-        <div class="chip">Biologia</div>
-        <div class="chip">Química</div>
-        <div class="chip">Português</div>
-        <div class="chip">História</div>
-        <div class="chip">Direito</div>
-        <div class="chip">+ outra</div>
+      <div class="chips" id="chips-materia">
+        <div class="chip sel" onclick="selecionarMateria(this,'Matemática')">Matemática</div>
+        <div class="chip" onclick="selecionarMateria(this,'Biologia')">Biologia</div>
+        <div class="chip" onclick="selecionarMateria(this,'Química')">Química</div>
+        <div class="chip" onclick="selecionarMateria(this,'Português')">Português</div>
+        <div class="chip" onclick="selecionarMateria(this,'História')">História</div>
+        <div class="chip" onclick="selecionarMateria(this,'Direito')">Direito</div>
       </div>
 
       <div class="step-label">passo 2 · quando é a prova?</div>
       <div class="date-field">
         <span class="hand" style="color:var(--ink-soft); font-size:14px;">data da prova</span>
-        <span class="val">18 / 08 / 2026</span>
+        <input type="date" id="input-data-prova" style="border:none; background:transparent; font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px; color:var(--ink-blue);">
       </div>
 
       <div class="step-label">passo 3 · de onde vem o material?</div>
@@ -632,27 +631,25 @@
       </div>
 
       <div class="source-panel on" id="src-foto">
-        <div class="camera-frame">
-          <div class="shutter"></div>
-          <div class="corner-tag">caderno · pág. 42</div>
+        <div class="camera-frame" id="camera-frame" onclick="document.getElementById('input-foto').click()">
+          <div class="shutter" id="foto-placeholder"></div>
+          <img id="foto-preview" style="display:none; width:100%; height:100%; object-fit:cover;">
+          <div class="corner-tag" id="foto-status">toque pra escolher a foto</div>
         </div>
-        <div class="capture-row">
-          <div class="capture-side">🖼️</div>
-          <div class="capture-side">📄</div>
-        </div>
+        <input type="file" id="input-foto" accept="image/*" capture="environment" style="display:none" onchange="fotoSelecionada(event)">
       </div>
 
       <div class="source-panel" id="src-arquivo">
         <div class="file-box">
           <span class="ic">📄</span>
-          Solte um PDF ou toque pra escolher um arquivo
+          Upload de PDF chega na próxima leva — por enquanto, usa a foto do material 🙂
         </div>
       </div>
 
       <div class="source-panel" id="src-youtube">
         <div class="link-box">
           <div class="ic">▶️</div>
-          <input type="text" placeholder="cole o link do vídeo do YouTube">
+          <input type="text" id="input-youtube" placeholder="cole o link do vídeo do YouTube">
         </div>
         <p class="hand" style="color:var(--ink-soft); font-size:12.5px; text-align:center; margin:0 0 10px;">a gente puxa a transcrição da aula e transforma em quiz</p>
       </div>
@@ -660,12 +657,12 @@
       <div class="source-panel" id="src-link">
         <div class="link-box">
           <div class="ic">🔗</div>
-          <input type="text" placeholder="cole o link do artigo ou site">
+          <input type="text" id="input-link" placeholder="cole o link do artigo ou site">
         </div>
         <p class="hand" style="color:var(--ink-soft); font-size:12.5px; text-align:center; margin:0 0 10px;">funciona junto com a foto do caderno, se quiser combinar as duas fontes</p>
       </div>
 
-      <button class="create-btn" onclick="go('quiz')">Criar minha jornada de estudo</button>
+      <button class="create-btn" id="btn-criar-jornada" onclick="criarJornada()">Criar minha jornada de estudo</button>
     </div>
   </div>
 
@@ -674,32 +671,55 @@
     <div class="sheet">
       <div class="topbar">
         <div class="back-btn" onclick="go('home')">←</div>
-        <h2>Cálculo II</h2>
+        <h2 id="quiz-titulo">Quiz</h2>
       </div>
       <div class="quiz-topbar">
-        <span class="quiz-progress-label">pergunta 3 de 8</span>
-        <span class="points">⭐ +120 pts</span>
+        <span class="quiz-progress-label" id="quiz-progress-label">pergunta 1 de 5</span>
+        <span class="points" id="quiz-points">⭐ +0 pts</span>
       </div>
-      <div class="bar-track"><div class="bar-fill"></div></div>
+      <div class="bar-track"><div class="bar-fill" id="quiz-bar-fill" style="width:20%;"></div></div>
 
       <div class="question-card">
-        <div class="q-eyebrow">tirada do seu caderno, pág. 12</div>
-        <div class="q-text">Qual é a derivada de f(x) = 3x² + 5x?</div>
+        <div class="q-eyebrow">gerado a partir do seu material</div>
+        <div class="q-text" id="quiz-pergunta-texto">Carregando pergunta...</div>
       </div>
 
-      <div class="options">
-        <div class="option"><div class="letter">A</div> f'(x) = 3x + 5</div>
-        <div class="option correct"><div class="letter">B</div> f'(x) = 6x + 5</div>
-        <div class="option wrong"><div class="letter">C</div> f'(x) = 6x + 5x</div>
-        <div class="option"><div class="letter">D</div> f'(x) = 3x²</div>
+      <div class="options" id="quiz-opcoes"></div>
+
+      <div class="feedback" id="quiz-feedback" style="display:none;">
+        <span id="quiz-feedback-icon" style="font-size:20px;">🎉</span>
+        <span class="hand" id="quiz-feedback-texto"></span>
       </div>
 
-      <div class="feedback">
-        <span style="font-size:20px;">🎉</span>
-        <span class="hand">Boa! É só aplicar a regra do tombo em cada termo.</span>
+      <button class="next-btn" id="quiz-next-btn" onclick="proximaPergunta()" disabled style="opacity:.5;">Responda pra continuar</button>
+    </div>
+  </div>
+
+  <!-- ============ RESULTADO ============ -->
+  <div class="screen" id="screen-resultado">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="go('home')">←</div>
+        <h2>Resultado</h2>
       </div>
 
-      <button class="next-btn" onclick="go('perfil')">Próxima pergunta</button>
+      <div class="journey" style="cursor:default;">
+        <div class="subject-name">jornada concluída</div>
+        <h3 id="resultado-titulo">—</h3>
+        <div class="journey-foot">
+          <span class="hand" id="resultado-pontos">0 pontos</span>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>Resumo</h2></div>
+      <div class="quiz-card" style="cursor:default;">
+        <p id="resultado-resumo" style="font-size:13.5px; line-height:1.6; margin:0;"></p>
+      </div>
+
+      <div class="section-title"><h2>Curiosidades</h2></div>
+      <div class="quiz-card" style="cursor:default;" id="resultado-curiosidades"></div>
+
+      <button class="create-btn" onclick="go('home')">Voltar pra Home</button>
     </div>
   </div>
 
@@ -1051,6 +1071,182 @@
     document.getElementById('home-saudacao').textContent = 'Oi, ' + usuario.nome.split(' ')[0] + ' 👋';
     document.getElementById('home-energia').textContent = '⚡ ' + usuario.energia;
     document.getElementById('home-streak').textContent = usuario.streak_atual + ' dias 🔥';
+  }
+
+  /* ============ NOVA MATÉRIA + IA ============ */
+  let materiaSelecionada = 'Matemática';
+  let fotoBase64 = null;
+
+  function selecionarMateria(el, nome){
+    document.querySelectorAll('#chips-materia .chip').forEach(c => c.classList.remove('sel'));
+    el.classList.add('sel');
+    materiaSelecionada = nome;
+  }
+
+  function fotoSelecionada(event){
+    const file = event.target.files[0];
+    if(!file) return;
+
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; };
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxW = 1280;
+      const escala = Math.min(1, maxW / img.width);
+      canvas.width = img.width * escala;
+      canvas.height = img.height * escala;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      fotoBase64 = dataUrl.split(',')[1];
+
+      document.getElementById('foto-placeholder').style.display = 'none';
+      const preview = document.getElementById('foto-preview');
+      preview.src = dataUrl;
+      preview.style.display = 'block';
+      document.getElementById('foto-status').textContent = 'foto pronta ✓';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function criarJornada(){
+    const dataProva = document.getElementById('input-data-prova').value;
+    const btn = document.getElementById('btn-criar-jornada');
+
+    if(!fotoBase64){ alert('Tira ou escolhe uma foto do material primeiro.'); return; }
+
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    if(!usuarioId){ alert('Sua conta não carregou direito, recarrega a página.'); return; }
+
+    btn.textContent = '✨ Gerando com IA... isso leva uns 15-30s'; btn.disabled = true; btn.style.opacity = '.7';
+
+    try{
+      const { data: materia, error: materiaErr } = await sb.from('be_materias')
+        .insert({ usuario_id: usuarioId, nome: materiaSelecionada, data_prova: dataProva || null })
+        .select().single();
+      if(materiaErr) throw materiaErr;
+
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/gerar-conteudo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'apikey': SUPABASE_KEY,
+          'x-usuario-id': DEVICE_ID,
+        },
+        body: JSON.stringify({
+          materia_id: materia.id,
+          tipo_fonte: 'foto',
+          imagem_base64: fotoBase64,
+        }),
+      });
+
+      const resultado = await resp.json();
+      if(!resp.ok) throw new Error(resultado.error || 'erro desconhecido');
+
+      iniciarQuiz(resultado);
+    }catch(err){
+      alert('Deu ruim ao gerar o conteúdo: ' + err.message);
+    }finally{
+      btn.textContent = 'Criar minha jornada de estudo'; btn.disabled = false; btn.style.opacity = '1';
+    }
+  }
+
+  /* ============ QUIZ JOGÁVEL ============ */
+  let quizPerguntas = [];
+  let quizIndex = 0;
+  let quizPontos = 0;
+  let quizResultado = null;
+
+  function iniciarQuiz(resultado){
+    quizResultado = resultado;
+    quizPerguntas = resultado.quiz || [];
+    quizIndex = 0;
+    quizPontos = 0;
+    document.getElementById('quiz-titulo').textContent = resultado.titulo || materiaSelecionada;
+    go('quiz');
+    renderPergunta();
+  }
+
+  function renderPergunta(){
+    const p = quizPerguntas[quizIndex];
+    if(!p){ mostrarResultadoFinal(); return; }
+
+    document.getElementById('quiz-progress-label').textContent = `pergunta ${quizIndex+1} de ${quizPerguntas.length}`;
+    document.getElementById('quiz-points').textContent = `⭐ +${quizPontos} pts`;
+    document.getElementById('quiz-bar-fill').style.width = `${Math.round(((quizIndex)/quizPerguntas.length)*100)}%`;
+    document.getElementById('quiz-pergunta-texto').textContent = p.pergunta;
+
+    const opcoesDiv = document.getElementById('quiz-opcoes');
+    opcoesDiv.innerHTML = '';
+    Object.entries(p.opcoes).forEach(([letra, texto]) => {
+      const div = document.createElement('div');
+      div.className = 'option';
+      div.innerHTML = `<div class="letter">${letra}</div> ${texto}`;
+      div.onclick = () => responder(letra, div);
+      opcoesDiv.appendChild(div);
+    });
+
+    document.getElementById('quiz-feedback').style.display = 'none';
+    const nextBtn = document.getElementById('quiz-next-btn');
+    nextBtn.disabled = true; nextBtn.style.opacity = '.5';
+    nextBtn.textContent = 'Responda pra continuar';
+  }
+
+  async function responder(letra, elClicado){
+    const p = quizPerguntas[quizIndex];
+    const acertou = letra === p.resposta_correta;
+
+    document.querySelectorAll('#quiz-opcoes .option').forEach(opt => {
+      opt.onclick = null;
+      const letraOpt = opt.querySelector('.letter').textContent;
+      if(letraOpt === p.resposta_correta) opt.classList.add('correct');
+      else if(opt === elClicado) opt.classList.add('wrong');
+    });
+
+    const pontosGanhos = acertou ? 100 : 0;
+    quizPontos += pontosGanhos;
+
+    document.getElementById('quiz-feedback-icon').textContent = acertou ? '🎉' : '📖';
+    document.getElementById('quiz-feedback-texto').textContent = p.explicacao || (acertou ? 'Boa!' : 'Vamos revisar isso.');
+    document.getElementById('quiz-feedback').style.display = 'flex';
+    document.getElementById('quiz-points').textContent = `⭐ +${quizPontos} pts`;
+
+    const nextBtn = document.getElementById('quiz-next-btn');
+    nextBtn.disabled = false; nextBtn.style.opacity = '1';
+    nextBtn.textContent = (quizIndex === quizPerguntas.length - 1) ? 'Ver resultado' : 'Próxima pergunta';
+
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    if(usuarioId && p.id){
+      await sb.from('be_tentativas').insert({
+        usuario_id: usuarioId, quiz_pergunta_id: p.id, acertou, pontos_ganhos: pontosGanhos,
+      });
+    }
+  }
+
+  function proximaPergunta(){
+    quizIndex++;
+    if(quizIndex >= quizPerguntas.length){ mostrarResultadoFinal(); return; }
+    renderPergunta();
+  }
+
+  function mostrarResultadoFinal(){
+    document.getElementById('quiz-bar-fill').style.width = '100%';
+    document.getElementById('resultado-titulo').textContent = quizResultado.titulo || materiaSelecionada;
+    document.getElementById('resultado-pontos').textContent = quizPontos + ' pontos nessa jornada 🎉';
+    document.getElementById('resultado-resumo').textContent = quizResultado.resumo || '';
+
+    const curDiv = document.getElementById('resultado-curiosidades');
+    curDiv.innerHTML = '';
+    (quizResultado.curiosidades || []).forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'ranking-row';
+      row.innerHTML = `<span style="font-size:16px;">💡</span><span style="font-size:13px;">${c}</span>`;
+      curDiv.appendChild(row);
+    });
+
+    go('resultado');
   }
 
   /* ao carregar a página: se já tem conta salva no aparelho, pula direto pra home */
