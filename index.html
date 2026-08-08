@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Bora Estudar — Protótipo</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,43 +27,48 @@
     --lilac-soft:#E7E1F5;
   }
   *{box-sizing:border-box;}
+  html, body{ height:100%; }
   body{
     margin:0;
-    background:#EDE6D4;
+    background:var(--paper);
     font-family:'Inter',sans-serif;
     color:var(--ink);
     display:flex;
     flex-direction:column;
     align-items:center;
-    padding:32px 12px 60px;
+    justify-content:flex-start;
+    min-height:100dvh;
     -webkit-font-smoothing:antialiased;
   }
-  .hint{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:12px;
-    color:#8b8367;
-    margin-bottom:16px;
-    text-align:center;
-    max-width:400px;
-  }
   .phone{
-    width:402px;
+    width:100%;
     max-width:100%;
-    height:860px;
+    height:100dvh;
     background:var(--paper);
-    border-radius:34px;
-    box-shadow:0 30px 70px -20px rgba(30,25,10,.45), 0 0 0 8px #17181B;
+    border-radius:0;
+    box-shadow:none;
     overflow:hidden;
     position:relative;
   }
-  .notch{
-    position:absolute;
-    top:0; left:50%;
-    transform:translateX(-50%);
-    width:120px; height:22px;
-    background:#17181B;
-    border-radius:0 0 16px 16px;
-    z-index:40;
+
+  /* tablet/desktop: vira um cartão elegante centralizado, sem imitar celular */
+  @media (min-width: 720px){
+    body{
+      background:
+        radial-gradient(circle at 15% 10%, rgba(44,72,112,.06), transparent 45%),
+        radial-gradient(circle at 85% 90%, rgba(232,103,74,.05), transparent 45%),
+        var(--paper-deep);
+      padding:48px 20px;
+      justify-content:center;
+    }
+    .phone{
+      width:430px;
+      max-width:430px;
+      height:860px;
+      max-height:88vh;
+      border-radius:28px;
+      box-shadow:0 40px 90px -30px rgba(32,38,47,.35), 0 0 0 1px rgba(184,168,120,.3);
+    }
   }
   .spiral{
     position:absolute;
@@ -300,7 +305,7 @@
   /* ===== NAV ===== */
   .navbar{
     position:absolute; bottom:0; left:0; right:0; background:var(--paper); border-top:2px solid var(--ink);
-    display:flex; padding:12px 18px 22px; z-index:30;
+    display:flex; padding:12px 18px calc(18px + env(safe-area-inset-bottom)); z-index:30;
   }
   .nav-item{ flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; color:var(--ink-soft); font-weight:600; cursor:pointer; background:none; border:none; font-family:'Inter'; }
   .nav-item.active{ color:var(--ink-blue); }
@@ -447,10 +452,7 @@
 </head>
 <body>
 
-<div class="hint">Bora Estudar — protótipo clicável — use o menu inferior ou os cards pra navegar entre as telas</div>
-
 <div class="phone">
-  <div class="notch"></div>
   <div class="spiral"></div>
 
   <!-- ============ CADASTRO ============ -->
