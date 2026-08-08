@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bora Estudar — Protótipo</title>
+<link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -443,6 +444,9 @@
   .footer-credit{
     font-family:'IBM Plex Mono',monospace; font-size:11px; color:#9a9278; margin-top:22px; text-align:center;
   }
+  .logo-img{ max-width:220px; width:70%; height:auto; margin:0 auto 22px; display:block; filter:drop-shadow(3px 4px 0 rgba(32,38,47,.25)); }
+  .logo-img.small{ max-width:130px; margin-bottom:18px; }
+  .home-logo{ height:22px; width:auto; margin-bottom:2px; }
 </style>
 </head>
 <body>
@@ -458,8 +462,7 @@
   <!-- ============ CADASTRO ============ -->
   <div class="screen active" id="screen-cadastro">
     <div class="onboard-wrap">
-      <div class="brand-wordmark">Bora Estudar<span class="dot">.</span></div>
-      <div class="onboard-mascot">📘</div>
+      <img src="logo.png" alt="Bora Estudar" class="logo-img">
       <h1>Vamos criar sua conta</h1>
       <span class="hand">primeiro, me conta quem é você</span>
 
@@ -498,7 +501,7 @@
   <!-- ============ CÓDIGO DE TURMA/GRUPO ============ -->
   <div class="screen" id="screen-codigo">
     <div class="onboard-wrap">
-      <div class="onboard-mascot">🔑</div>
+      <img src="logo.png" alt="Bora Estudar" class="logo-img small">
       <h1>Tem um código?</h1>
       <span class="hand">se um professor ou amigo te passou um código de turma, é aqui que ele entra</span>
 
@@ -525,7 +528,7 @@
     <div class="sheet">
       <div class="header">
         <div class="greet">
-          <span class="eyebrow" style="color:var(--coral);">Bora Estudar</span>
+          <img src="logo.png" alt="Bora Estudar" class="home-logo">
           <h1 id="home-saudacao">Oi 👋</h1>
           <span class="hand">bora estudar hoje?</span>
         </div>
