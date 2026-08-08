@@ -963,7 +963,21 @@
   /* ============ SUPABASE ============ */
   const SUPABASE_URL = 'https://hkaqsrqxvvdzniaeklzd.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYXFzcnF4dnZkem5pYWVrbHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwMjcxOTgsImV4cCI6MjA5OTYwMzE5OH0.9WfRq5e4fEw2KOvYBk40-RdEeNjdqqhLERRiyV9lJMk';
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* identidade do aparelho: substitui login/senha nesta primeira versão */
+  function getDeviceId(){
+    let id = localStorage.getItem('be_device_id');
+    if(!id){
+      id = crypto.randomUUID();
+      localStorage.setItem('be_device_id', id);
+    }
+    return id;
+  }
+  const DEVICE_ID = getDeviceId();
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    global: { headers: { 'x-usuario-id': DEVICE_ID } }
+  });
 
   let papelSelecionado = 'aluno';
 
@@ -984,11 +998,8 @@
     btn.textContent = 'Criando...'; btn.style.opacity = '.7';
 
     try{
-      const { data: authData, error: authErr } = await sb.auth.signInAnonymously();
-      if(authErr) throw authErr;
-
       const { data: usuario, error: insErr } = await sb.from('be_usuarios')
-        .insert({ auth_user_id: authData.user.id, nome, papel: papelSelecionado, escola, cidade })
+        .insert({ device_id: DEVICE_ID, nome, papel: papelSelecionado, escola, cidade })
         .select().single();
       if(insErr) throw insErr;
 
