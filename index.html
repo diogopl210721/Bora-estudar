@@ -2237,7 +2237,8 @@
   }
 
   async function criarJornada(){
-    materiaSelecionada = document.getElementById('input-materia').value.trim();    if(!materiaSelecionada){ alert('Escreve o nome da matéria primeiro.'); return; }
+    materiaSelecionada = document.getElementById('input-materia').value.trim();
+    if(!materiaSelecionada){ alert('Escreve o nome da matéria primeiro.'); return; }
 
     const dataProva = document.getElementById('input-data-prova').value;
     const btn = document.getElementById('btn-criar-jornada');
@@ -2265,18 +2266,36 @@
     const usuarioId = localStorage.getItem('be_usuario_id');
     if(!usuarioId){ alert('Sua conta não carregou direito, recarrega a página.'); return; }
 
+    /* avisa se já existe uma matéria ativa com esse mesmo nome, em vez de criar duplicada */
+    let materiaExistenteId = materiaAlvoId;
+    if(!materiaExistenteId){
+      const { data: repetida } = await sb.from('be_materias')
+        .select('id, nome')
+        .eq('usuario_id', usuarioId)
+        .eq('status', 'ativa')
+        .ilike('nome', materiaSelecionada)
+        .maybeSingle();
+      if(repetida){
+        const usar = confirm(`Você já tem uma matéria chamada "${repetida.nome}". Quer adicionar esse material nela, em vez de criar uma duplicada?\n\nOK = usar a que já existe\nCancelar = escolher outro nome`);
+        if(!usar){ return; }
+        materiaExistenteId = repetida.id;
+      }
+    }
+
     btn.textContent = '✨ Gerando com IA... isso leva uns 15-30s'; btn.disabled = true; btn.style.opacity = '.7';
 
+    let materiaCriadaAgora = false;
+    let materiaIdAlvo;
     try{
-      let materiaIdAlvo;
-      if(materiaAlvoId){
-        materiaIdAlvo = materiaAlvoId;
+      if(materiaExistenteId){
+        materiaIdAlvo = materiaExistenteId;
       } else {
         const { data: materia, error: materiaErr } = await sb.from('be_materias')
           .insert({ usuario_id: usuarioId, nome: materiaSelecionada, data_prova: dataProva || null })
           .select().single();
         if(materiaErr) throw materiaErr;
         materiaIdAlvo = materia.id;
+        materiaCriadaAgora = true;
       }
 
       const { data: sessaoData } = await sb.auth.getSession();
@@ -2303,6 +2322,10 @@
       if(usuarioIdAtual) atualizarEnergiaExibida(usuarioIdAtual);
       iniciarQuiz(resultado);
     }catch(err){
+      /* se a matéria acabou de ser criada agora e a IA falhou, apaga pra não deixar lixo vazio */
+      if(materiaCriadaAgora && materiaIdAlvo){
+        await sb.from('be_materias').delete().eq('id', materiaIdAlvo);
+      }
       alert('Deu ruim ao gerar o conteúdo: ' + err.message);
     }finally{
       btn.textContent = 'Criar minha jornada de estudo'; btn.disabled = false; btn.style.opacity = '1';
