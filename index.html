@@ -530,10 +530,10 @@
     <div class="sidebar-divider"></div>
     <nav class="sidebar-nav">
       <button class="nav-item side-item" data-s="home" onclick="go('home')"><span class="nav-icon">🏠</span> Início</button>
-      <button class="nav-item side-item" data-s="upload" onclick="novaMateria()"><span class="nav-icon">📚</span> Matérias</button>
+      <button class="nav-item side-item" data-s="materias" onclick="verMaterias()"><span class="nav-icon">📚</span> Matérias</button>
       <button class="nav-item side-item" data-s="ranking" onclick="verRanking()"><span class="nav-icon">🏆</span> Ranking</button>
       <button class="nav-item side-item" data-s="grupos" onclick="verGrupos()"><span class="nav-icon">👥</span> Grupos</button>
-      <button class="nav-item side-item" data-s="perfil" onclick="go('perfil')"><span class="nav-icon">👤</span> Perfil</button>
+      <button class="nav-item side-item" data-s="perfil" onclick="verPerfil()"><span class="nav-icon">👤</span> Perfil</button>
     </nav>
     <div class="sidebar-foot">
       <div class="energy-pill" id="sidebar-energia">⚡ 7</div>
@@ -640,6 +640,45 @@
     </div>
   </div>
 
+  <!-- ============ MINHAS MATÉRIAS (lista) ============ -->
+  <div class="screen" id="screen-materias">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="go('home')">←</div>
+        <h2>Minhas matérias</h2>
+      </div>
+
+      <div id="lista-materias">
+        <p class="hand" style="color:var(--ink-soft); text-align:center;">carregando...</p>
+      </div>
+
+      <button class="create-btn" onclick="novaMateria()">+ nova matéria</button>
+    </div>
+  </div>
+
+  <!-- ============ DETALHE DE UMA MATÉRIA ============ -->
+  <div class="screen" id="screen-materia-detalhe">
+    <div class="sheet">
+      <div class="topbar">
+        <div class="back-btn" onclick="verMaterias()">←</div>
+        <h2 id="detalhe-titulo">Matéria</h2>
+      </div>
+
+      <div class="section-title"><h2>Resumo</h2></div>
+      <div class="quiz-card" style="cursor:default;">
+        <p id="detalhe-resumo" style="font-size:13.5px; line-height:1.6; margin:0;">carregando...</p>
+      </div>
+
+      <div class="section-title"><h2>Mapa mental</h2></div>
+      <div class="quiz-card" style="cursor:default;" id="detalhe-mapa"></div>
+
+      <div class="section-title"><h2>Curiosidades</h2></div>
+      <div class="quiz-card" style="cursor:default;" id="detalhe-curiosidades"></div>
+
+      <button class="create-btn" id="btn-jogar-quiz" onclick="jogarQuizDaMateria()">🎮 Jogar o quiz dessa matéria</button>
+    </div>
+  </div>
+
   <!-- ============ UPLOAD / NOVA MATÉRIA ============ -->
   <div class="screen" id="screen-upload">
     <div class="sheet">
@@ -682,10 +721,11 @@
       </div>
 
       <div class="source-panel" id="src-arquivo">
-        <div class="file-box">
-          <span class="ic">📄</span>
-          Upload de PDF chega na próxima leva — por enquanto, usa a foto do material 🙂
+        <div class="file-box" id="pdf-drop" onclick="document.getElementById('input-pdf').click()" style="cursor:pointer;">
+          <span class="ic" id="pdf-icone">📄</span>
+          <span id="pdf-status">toque pra escolher um PDF do material</span>
         </div>
+        <input type="file" id="input-pdf" accept="application/pdf" style="display:none" onchange="pdfSelecionado(event)">
       </div>
 
       <div class="source-panel" id="src-youtube">
@@ -774,35 +814,49 @@
       </div>
 
       <div class="profile-head">
-        <div class="big-avatar">D</div>
+        <div class="big-avatar" id="perfil-avatar">?</div>
         <div>
-          <h1>Diogo Soares</h1>
-          <span class="hand">nível 9 · Universidade Positivo</span>
+          <h1 id="perfil-nome">carregando...</h1>
+          <span class="hand" id="perfil-meta">—</span>
         </div>
       </div>
 
-      <div class="xp-row"><span>680 XP</span><span>faltam 320 pra nível 10</span></div>
-      <div class="xp-track"><div class="xp-fill"></div></div>
+      <div class="xp-row"><span id="perfil-xp">0 XP</span><span id="perfil-proximo-nivel">—</span></div>
+      <div class="xp-track"><div class="xp-fill" id="perfil-xp-fill" style="width:0%;"></div></div>
 
       <div class="stat-row">
-        <div class="stat-box"><div class="n">6🔥</div><div class="l">sequência</div></div>
-        <div class="stat-box"><div class="n">142</div><div class="l">quizzes feitos</div></div>
-        <div class="stat-box"><div class="n">4</div><div class="l">matérias ativas</div></div>
+        <div class="stat-box"><div class="n" id="perfil-streak">0🔥</div><div class="l">sequência</div></div>
+        <div class="stat-box"><div class="n" id="perfil-quizzes">0</div><div class="l">quizzes feitos</div></div>
+        <div class="stat-box"><div class="n" id="perfil-materias">0</div><div class="l">matérias criadas</div></div>
+      </div>
+
+      <div class="new-group-row">
+        <div class="ghost-btn" onclick="toggleForm('editar-perfil')">✏️ editar perfil</div>
+      </div>
+
+      <div class="inline-form" id="form-editar-perfil">
+        <label>foto de perfil</label>
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+          <div class="big-avatar" id="perfil-avatar-preview" style="width:52px; height:52px; font-size:19px;">?</div>
+          <div class="ghost-btn" style="padding:9px 16px;" onclick="document.getElementById('input-avatar').click()">trocar foto</div>
+          <input type="file" id="input-avatar" accept="image/*" style="display:none" onchange="avatarSelecionado(event)">
+        </div>
+        <label>nome</label>
+        <input type="text" id="input-editar-nome">
+        <label>escola</label>
+        <input type="text" id="input-editar-escola">
+        <label>cidade</label>
+        <input type="text" id="input-editar-cidade">
+        <button class="go-btn" id="btn-salvar-perfil" onclick="salvarPerfil()">Salvar alterações</button>
+        <p class="hand" style="color:var(--ink-soft); font-size:12px; text-align:center; margin:12px 0 0;">
+          login por e-mail e senha ainda não está disponível nessa versão — por enquanto sua conta fica salva neste aparelho.
+        </p>
       </div>
 
       <div class="section-title"><h2>Conquistas</h2></div>
-      <div class="badges">
-        <div class="badge"><div class="badge-icon gold">🏅</div><span class="lbl">1º lugar no quiz do dia</span></div>
-        <div class="badge"><div class="badge-icon mint">💯</div><span class="lbl">Simulado sem erros</span></div>
-        <div class="badge"><div class="badge-icon coral">🔥</div><span class="lbl">7 dias seguidos</span></div>
-        <div class="badge"><div class="badge-icon lilac">🧠</div><span class="lbl">5 mapas mentais</span></div>
-        <div class="badge"><div class="badge-icon locked">🌙</div><span class="lbl">Coruja — estudou de madrugada</span></div>
-        <div class="badge"><div class="badge-icon locked">🚀</div><span class="lbl">30 dias seguidos</span></div>
-        <div class="badge"><div class="badge-icon locked">👥</div><span class="lbl">Convidou 3 amigos</span></div>
-        <div class="badge"><div class="badge-icon locked">📚</div><span class="lbl">10 matérias criadas</span></div>
-      </div>
+      <div class="badges" id="perfil-badges"></div>
 
-      <div class="ghost-btn" style="border-color:var(--coral); color:var(--coral); margin-top:6px;" onclick="sair()">🚪 Sair da conta</div>
+      <div class="ghost-btn" style="border-color:var(--coral); color:var(--coral); margin-top:16px;" onclick="sair()">🚪 Sair da conta</div>
     </div>
   </div>
 
@@ -897,9 +951,9 @@
 
   <div class="navbar" id="navbar">
     <button class="nav-item" data-s="home" onclick="go('home')"><div class="nav-icon">🏠</div>Início</button>
-    <button class="nav-item" data-s="upload" onclick="novaMateria()"><div class="nav-icon">📚</div>Matérias</button>
+    <button class="nav-item" data-s="materias" onclick="verMaterias()"><div class="nav-icon">📚</div>Matérias</button>
     <button class="nav-item" data-s="ranking" onclick="verRanking()"><div class="nav-icon">🏆</div>Ranking</button>
-    <button class="nav-item" data-s="perfil" onclick="go('perfil')"><div class="nav-icon">👤</div>Perfil</button>
+    <button class="nav-item" data-s="perfil" onclick="verPerfil()"><div class="nav-icon">👤</div>Perfil</button>
   </div>
 </div>
 </div>
@@ -915,6 +969,121 @@
     document.getElementById('persistentCredit').classList.toggle('no-nav', semNav);
     document.getElementById('sidebar').classList.toggle('sidebar-hidden', semNav);
     document.querySelector('.app-shell').classList.toggle('sem-sidebar', semNav);
+  }
+
+  /* ============ PERFIL ============ */
+  let avatarBase64Novo = null;
+
+  function verPerfil(){ go('perfil'); carregarPerfil(); }
+
+  function iniciaisDoNome(nome){
+    return nome.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
+  }
+
+  function pintarAvatar(el, usuario){
+    if(usuario.avatar_base64){
+      el.style.backgroundImage = `url(${usuario.avatar_base64})`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.textContent = '';
+    } else {
+      el.style.backgroundImage = 'none';
+      el.textContent = iniciaisDoNome(usuario.nome);
+    }
+  }
+
+  async function carregarPerfil(){
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    if(!usuarioId) return;
+
+    const { data: usuario, error } = await sb.from('be_usuarios').select('*').eq('id', usuarioId).single();
+    if(error || !usuario) return;
+
+    document.getElementById('perfil-nome').textContent = usuario.nome;
+    document.getElementById('perfil-meta').textContent = `nível ${usuario.nivel} · ${usuario.papel === 'professor' ? 'professor(a)' : 'aluno(a)'}${usuario.escola ? ' · ' + usuario.escola : ''}`;
+    pintarAvatar(document.getElementById('perfil-avatar'), usuario);
+    pintarAvatar(document.getElementById('perfil-avatar-preview'), usuario);
+
+    document.getElementById('perfil-xp').textContent = usuario.xp + ' XP';
+    const xpProximoNivel = usuario.nivel * 200;
+    const faltam = Math.max(0, xpProximoNivel - usuario.xp);
+    document.getElementById('perfil-proximo-nivel').textContent = `faltam ${faltam} pra nível ${usuario.nivel + 1}`;
+    document.getElementById('perfil-xp-fill').style.width = Math.min(100, (usuario.xp / xpProximoNivel) * 100) + '%';
+
+    document.getElementById('perfil-streak').textContent = usuario.streak_atual + '🔥';
+
+    const { count: quizzesCount } = await sb.from('be_tentativas').select('*', { count: 'exact', head: true }).eq('usuario_id', usuarioId);
+    document.getElementById('perfil-quizzes').textContent = quizzesCount || 0;
+
+    const { count: materiasCount } = await sb.from('be_materias').select('*', { count: 'exact', head: true }).eq('usuario_id', usuarioId);
+    document.getElementById('perfil-materias').textContent = materiasCount || 0;
+
+    document.getElementById('input-editar-nome').value = usuario.nome || '';
+    document.getElementById('input-editar-escola').value = usuario.escola || '';
+    document.getElementById('input-editar-cidade').value = usuario.cidade || '';
+    avatarBase64Novo = null;
+
+    /* conquistas: catálogo completo, marcando o que já foi desbloqueado de verdade */
+    const { data: catalogo } = await sb.from('be_conquistas').select('*').order('nome');
+    const { data: minhas } = await sb.from('be_usuario_conquistas').select('conquista_id').eq('usuario_id', usuarioId);
+    const desbloqueadasIds = new Set((minhas || []).map(m => m.conquista_id));
+    const cores = ['gold','mint','coral','lilac'];
+    document.getElementById('perfil-badges').innerHTML = (catalogo || []).map((c, i) => {
+      const desbloqueada = desbloqueadasIds.has(c.id);
+      const cor = desbloqueada ? cores[i % cores.length] : 'locked';
+      return `<div class="badge"><div class="badge-icon ${cor}">${c.icone}</div><span class="lbl">${c.nome}</span></div>`;
+    }).join('');
+  }
+
+  function avatarSelecionado(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; };
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const tam = 240;
+      canvas.width = tam; canvas.height = tam;
+      const ctx = canvas.getContext('2d');
+      const escala = Math.max(tam / img.width, tam / img.height);
+      const w = img.width * escala, h = img.height * escala;
+      ctx.drawImage(img, (tam - w) / 2, (tam - h) / 2, w, h);
+      avatarBase64Novo = canvas.toDataURL('image/jpeg', 0.8);
+      const preview = document.getElementById('perfil-avatar-preview');
+      preview.style.backgroundImage = `url(${avatarBase64Novo})`;
+      preview.style.backgroundSize = 'cover';
+      preview.style.backgroundPosition = 'center';
+      preview.textContent = '';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function salvarPerfil(){
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    const nome = document.getElementById('input-editar-nome').value.trim();
+    const escola = document.getElementById('input-editar-escola').value.trim();
+    const cidade = document.getElementById('input-editar-cidade').value.trim();
+    if(!nome){ alert('o nome não pode ficar vazio'); return; }
+
+    const btn = document.getElementById('btn-salvar-perfil');
+    btn.textContent = 'Salvando...'; btn.disabled = true;
+
+    try{
+      const update = { nome, escola, cidade };
+      if(avatarBase64Novo) update.avatar_base64 = avatarBase64Novo;
+
+      const { error } = await sb.from('be_usuarios').update(update).eq('id', usuarioId);
+      if(error) throw error;
+
+      document.getElementById('form-editar-perfil').classList.remove('on');
+      carregarPerfil();
+      carregarHome();
+    }catch(err){
+      alert('Deu ruim ao salvar: ' + err.message);
+    }finally{
+      btn.textContent = 'Salvar alterações'; btn.disabled = false;
+    }
   }
 
   function sair(){
@@ -933,10 +1102,14 @@
   }
 
   function toggleForm(type){
-    const criar = document.getElementById('form-criar');
-    const entrar = document.getElementById('form-entrar');
-    if(type === 'criar'){ criar.classList.toggle('on'); entrar.classList.remove('on'); }
-    else { entrar.classList.toggle('on'); criar.classList.remove('on'); }
+    if(type === 'criar' || type === 'entrar'){
+      const criar = document.getElementById('form-criar');
+      const entrar = document.getElementById('form-entrar');
+      if(type === 'criar'){ criar.classList.toggle('on'); entrar.classList.remove('on'); }
+      else { entrar.classList.toggle('on'); criar.classList.remove('on'); }
+      return;
+    }
+    document.getElementById('form-' + type).classList.toggle('on');
   }
 
   /* ============ GRUPOS ============ */
@@ -1280,6 +1453,8 @@
       const t = document.createElement('div');
       t.className = 'tab' + (i === 0 ? ' active' : ' c' + ((i % 3) + 1));
       t.textContent = m.nome;
+      t.style.cursor = 'pointer';
+      t.onclick = () => abrirMateriaDetalhe(m.id, m.nome);
       tabsDiv.appendChild(t);
     });
     tabsDiv.appendChild(addTab);
@@ -1294,13 +1469,13 @@
       }
       wrap.innerHTML = `
         <div class="section-title"><h2>Continue de onde parou</h2></div>
-        <div class="journey">
+        <div class="journey" style="cursor:pointer;" onclick="abrirMateriaDetalhe('${m.id}','${m.nome.replace(/'/g,"\\'")}')">
           <div class="countdown">${diasTexto}</div>
           <div class="subject-name">${m.nome}</div>
           <h3>Sua última jornada</h3>
           <div class="journey-foot">
             <span class="hand">criada ${new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
-            <button class="btn-continue" onclick="novaMateria()">Nova rodada</button>
+            <button class="btn-continue" onclick="event.stopPropagation(); novaMateria()">Nova rodada</button>
           </div>
         </div>`;
     } else {
@@ -1316,6 +1491,108 @@
   /* ============ NOVA MATÉRIA + IA ============ */
   let materiaSelecionada = '';
   let fotoBase64 = null;
+
+  /* ============ MINHAS MATÉRIAS ============ */
+  function verMaterias(){ go('materias'); carregarMateriasLista(); }
+
+  async function carregarMateriasLista(){
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    const lista = document.getElementById('lista-materias');
+    if(!usuarioId) return;
+
+    const { data: materias, error } = await sb.from('be_materias')
+      .select('id, nome, data_prova, created_at')
+      .eq('usuario_id', usuarioId)
+      .order('created_at', { ascending: false });
+
+    if(error){ lista.innerHTML = `<p class="hand" style="color:var(--coral); text-align:center;">erro ao carregar</p>`; return; }
+    if(!materias || materias.length === 0){
+      lista.innerHTML = `<p class="hand" style="color:var(--ink-soft); text-align:center;">você ainda não criou nenhuma matéria — toca em "+ nova matéria" pra começar</p>`;
+      return;
+    }
+
+    lista.innerHTML = materias.map(m => {
+      let diasTexto = 'sem data de prova';
+      if(m.data_prova){
+        const dias = Math.ceil((new Date(m.data_prova) - new Date()) / 86400000);
+        diasTexto = dias >= 0 ? `faltam ${dias} dia${dias===1?'':'s'}` : 'prova já passou';
+      }
+      return `
+        <div class="group-card" style="cursor:pointer;" onclick="abrirMateriaDetalhe('${m.id}','${m.nome.replace(/'/g,"\\'")}')">
+          <div class="group-card-top">
+            <div>
+              <h3>${m.nome}</h3>
+              <span class="hand">${diasTexto} · criada ${new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  let materiaDetalheId = null;
+  let materiaDetalheQuiz = [];
+
+  async function abrirMateriaDetalhe(materiaId, nome){
+    go('materia-detalhe');
+    materiaDetalheId = materiaId;
+    document.getElementById('detalhe-titulo').textContent = nome;
+    document.getElementById('detalhe-resumo').textContent = 'carregando...';
+    document.getElementById('detalhe-mapa').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+    document.getElementById('detalhe-curiosidades').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+
+    const { data: conteudos } = await sb.from('be_conteudo_gerado').select('id, tipo, conteudo').eq('materia_id', materiaId);
+    if(!conteudos || conteudos.length === 0){
+      document.getElementById('detalhe-resumo').textContent = 'nenhum conteúdo gerado ainda pra essa matéria.';
+      document.getElementById('detalhe-mapa').innerHTML = '';
+      document.getElementById('detalhe-curiosidades').innerHTML = '';
+      document.getElementById('btn-jogar-quiz').style.display = 'none';
+      return;
+    }
+    document.getElementById('btn-jogar-quiz').style.display = 'block';
+
+    const resumo = conteudos.find(c => c.tipo === 'resumo');
+    document.getElementById('detalhe-resumo').textContent = resumo ? resumo.conteudo.texto : 'sem resumo.';
+
+    const mapa = conteudos.find(c => c.tipo === 'mapa_mental');
+    const mapaDiv = document.getElementById('detalhe-mapa');
+    if(mapa && mapa.conteudo && mapa.conteudo.ramos){
+      mapaDiv.innerHTML = `<p class="hand" style="font-weight:700; margin-bottom:8px;">${mapa.conteudo.tema_central || nome}</p>` +
+        mapa.conteudo.ramos.map(r => `
+          <div class="ranking-row">
+            <span style="font-size:16px;">🌿</span>
+            <div><div class="r-name">${r.titulo}</div><div class="r-meta">${(r.pontos||[]).join(' · ')}</div></div>
+          </div>`).join('');
+    } else {
+      mapaDiv.innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">sem mapa mental.</p>`;
+    }
+
+    const curi = conteudos.find(c => c.tipo === 'curiosidades');
+    const curiDiv = document.getElementById('detalhe-curiosidades');
+    if(curi && curi.conteudo && curi.conteudo.lista && curi.conteudo.lista.length){
+      curiDiv.innerHTML = curi.conteudo.lista.map(c => `
+        <div class="ranking-row"><span style="font-size:16px;">💡</span><span style="font-size:13px;">${c}</span></div>`).join('');
+    } else {
+      curiDiv.innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">sem curiosidades.</p>`;
+    }
+
+    const quizConteudo = conteudos.find(c => c.tipo === 'quiz');
+    if(quizConteudo){
+      const { data: perguntas } = await sb.from('be_quiz_perguntas').select('*').eq('conteudo_gerado_id', quizConteudo.id).order('ordem');
+      materiaDetalheQuiz = perguntas || [];
+    } else {
+      materiaDetalheQuiz = [];
+    }
+  }
+
+  function jogarQuizDaMateria(){
+    if(!materiaDetalheQuiz || materiaDetalheQuiz.length === 0){ alert('Essa matéria ainda não tem quiz gerado.'); return; }
+    iniciarQuiz({
+      titulo: document.getElementById('detalhe-titulo').textContent,
+      quiz: materiaDetalheQuiz,
+      resumo: document.getElementById('detalhe-resumo').textContent,
+      curiosidades: [],
+    });
+  }
 
   function novaMateria(){
     const campoMateria = document.getElementById('input-materia');
@@ -1333,11 +1610,29 @@
     if(placeholder) placeholder.style.display = 'flex';
     if(preview) preview.style.display = 'none';
     if(status) status.textContent = 'toque pra tirar a foto';
+    pdfBase64 = null;
+    const pdfIcone = document.getElementById('pdf-icone');
+    const pdfStatus = document.getElementById('pdf-status');
+    if(pdfIcone) pdfIcone.textContent = '📄';
+    if(pdfStatus) pdfStatus.textContent = 'toque pra escolher um PDF do material';
     go('upload');
   }
 
-  function fotoSelecionada(event){
+  let pdfBase64 = null;
+  function pdfSelecionado(event){
     const file = event.target.files[0];
+    if(!file) return;
+    if(file.size > 15 * 1024 * 1024){ alert('Esse PDF está grande demais (máx. 15MB).'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      pdfBase64 = e.target.result.split(',')[1];
+      document.getElementById('pdf-icone').textContent = '✅';
+      document.getElementById('pdf-status').textContent = file.name + ' pronto';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function fotoSelecionada(event){    const file = event.target.files[0];
     if(!file) return;
 
     const img = new Image();
@@ -1381,8 +1676,11 @@
       const link = document.getElementById('input-link').value.trim();
       if(!link){ alert('Cola o link do site primeiro.'); return; }
       payloadExtra = { tipo_fonte: 'link', url: link };
+    } else if(fonteAtual === 'arquivo'){
+      if(!pdfBase64){ alert('Escolhe um arquivo PDF primeiro.'); return; }
+      payloadExtra = { tipo_fonte: 'pdf', pdf_base64: pdfBase64 };
     } else {
-      alert('Upload de PDF ainda não está disponível nessa versão — usa foto, YouTube ou site por enquanto.');
+      alert('Escolhe uma fonte de material primeiro (foto, PDF, YouTube ou site).');
       return;
     }
 
