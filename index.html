@@ -654,8 +654,10 @@
       </div>
 
       <button class="onboard-btn" id="btn-login" onclick="entrarComEmailSenha()">Entrar</button>
-      <span class="onboard-skip" onclick="go('recuperar')" style="display:block; margin-bottom:10px;">esqueci minha senha</span>
-      <span class="onboard-skip" onclick="go('cadastro')" style="display:block;">ainda não tenho conta, criar</span>
+      <span class="onboard-skip" onclick="go('recuperar')" style="display:block; margin-bottom:20px;">esqueci minha senha</span>
+
+      <div class="onboard-divider">ainda não tem conta?</div>
+      <div class="ghost-btn" style="border-color:var(--ink-blue); color:var(--ink-blue); font-weight:700;" onclick="go('cadastro')">✨ criar minha conta</div>
     </div>
   </div>
 
@@ -2390,7 +2392,7 @@
       carregarHome();
     } else {
       localStorage.removeItem('be_usuario_id');
-      go('cadastro');
+      go('login');
     }
   })();
 </script>
