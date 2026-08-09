@@ -629,6 +629,16 @@
         <input type="text" id="input-cidade" placeholder="ex: Campo Largo - PR">
       </div>
 
+      <div class="onboard-field">
+        <label>pergunta de segurança <span class="opt">(pra recuperar a senha sem e-mail)</span></label>
+        <input type="text" id="input-pergunta-seguranca" placeholder="ex: nome do meu primeiro pet">
+      </div>
+
+      <div class="onboard-field">
+        <label>resposta</label>
+        <input type="text" id="input-resposta-seguranca" placeholder="a resposta dessa pergunta">
+      </div>
+
       <button class="onboard-btn" id="btn-cadastro" onclick="criarConta()">Continuar</button>
       <span class="onboard-skip" onclick="go('login')">já tenho conta, entrar</span>
     </div>
@@ -652,8 +662,8 @@
       </div>
 
       <button class="onboard-btn" id="btn-login" onclick="entrarComEmailSenha()">Entrar</button>
-      <span class="onboard-skip" onclick="go('recuperar')">esqueci minha senha</span>
-      <span class="onboard-skip" onclick="go('cadastro')">ainda não tenho conta, criar</span>
+      <span class="onboard-skip" onclick="go('recuperar')" style="display:block; margin-bottom:10px;">esqueci minha senha</span>
+      <span class="onboard-skip" onclick="go('cadastro')" style="display:block;">ainda não tenho conta, criar</span>
     </div>
   </div>
 
@@ -662,15 +672,32 @@
     <div class="onboard-wrap">
       <img src="logo.png" alt="Bora Estudar" class="logo-img small">
       <h1>Esqueceu a senha?</h1>
-      <span class="hand">acontece 🙂 manda seu e-mail que a gente te ajuda</span>
+      <span class="hand">acontece 🙂 sem problema, vamos resolver na hora</span>
 
       <div class="onboard-field">
-        <label>e-mail</label>
+        <label>seu e-mail</label>
         <input type="email" id="input-email-recuperar" placeholder="voce@email.com">
       </div>
 
-      <button class="onboard-btn" id="btn-recuperar" onclick="enviarRecuperacaoSenha()">Enviar link de recuperação</button>
-      <span class="onboard-skip" onclick="go('login')">lembrei, quero entrar</span>
+      <button class="onboard-btn" id="btn-buscar-pergunta" onclick="buscarPerguntaSeguranca()">Continuar</button>
+
+      <div id="bloco-pergunta-seguranca" style="display:none; width:100%;">
+        <div class="onboard-field">
+          <label id="label-pergunta-mostrada">pergunta de segurança</label>
+          <input type="text" id="input-resposta-recuperar" placeholder="sua resposta">
+        </div>
+        <div class="onboard-field">
+          <label>senha nova</label>
+          <input type="password" id="input-nova-senha-pergunta" placeholder="mínimo 6 caracteres">
+        </div>
+        <div class="onboard-field">
+          <label>confirmar senha nova</label>
+          <input type="password" id="input-nova-senha-pergunta-confirma" placeholder="repete a senha nova">
+        </div>
+        <button class="onboard-btn" id="btn-resetar-com-pergunta" onclick="resetarSenhaComPergunta()">Trocar senha</button>
+      </div>
+
+      <span class="onboard-skip" onclick="go('login')" style="display:block; margin-top:10px;">lembrei, quero entrar</span>
     </div>
   </div>
 
@@ -1528,6 +1555,12 @@
     return out;
   }
 
+  async function sha256Cliente(texto){
+    const dados = new TextEncoder().encode(texto.trim().toLowerCase());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dados);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
   async function criarPerfilSeNaoExistir(authUserId){
     const { data: existente } = await sb.from('be_usuarios').select('id').eq('auth_user_id', authUserId).maybeSingle();
     if(existente){ localStorage.setItem('be_usuario_id', existente.id); return existente.id; }
@@ -1535,8 +1568,17 @@
     const nome = document.getElementById('input-nome').value.trim() || 'Aluno(a)';
     const escola = document.getElementById('input-escola').value.trim();
     const cidade = document.getElementById('input-cidade').value.trim();
+    const pergunta = document.getElementById('input-pergunta-seguranca') ? document.getElementById('input-pergunta-seguranca').value.trim() : '';
+    const resposta = document.getElementById('input-resposta-seguranca') ? document.getElementById('input-resposta-seguranca').value.trim() : '';
+
+    const insertData = { auth_user_id: authUserId, nome, papel: papelSelecionado, escola, cidade };
+    if(pergunta && resposta){
+      insertData.pergunta_seguranca = pergunta;
+      insertData.resposta_seguranca_hash = await sha256Cliente(resposta);
+    }
+
     const { data: novo, error } = await sb.from('be_usuarios')
-      .insert({ auth_user_id: authUserId, nome, papel: papelSelecionado, escola, cidade })
+      .insert(insertData)
       .select().single();
     if(error) throw error;
     localStorage.setItem('be_usuario_id', novo.id);
@@ -1548,10 +1590,13 @@
     const email = document.getElementById('input-email-cadastro').value.trim();
     const senha = document.getElementById('input-senha-cadastro').value;
     const senhaConfirma = document.getElementById('input-senha-cadastro-confirma').value;
+    const pergunta = document.getElementById('input-pergunta-seguranca').value.trim();
+    const resposta = document.getElementById('input-resposta-seguranca').value.trim();
     if(!nome){ alert('digite seu nome pra continuar'); return; }
     if(!email){ alert('digite seu e-mail'); return; }
     if(!senha || senha.length < 6){ alert('a senha precisa ter pelo menos 6 caracteres'); return; }
     if(senha !== senhaConfirma){ alert('as duas senhas não são iguais, confere de novo'); return; }
+    if(!pergunta || !resposta){ alert('preenche a pergunta e a resposta de segurança — é como você recupera a senha depois, sem precisar de e-mail'); return; }
 
     const btn = document.getElementById('btn-cadastro');
     btn.textContent = 'Criando...'; btn.style.opacity = '.7';
@@ -1572,6 +1617,66 @@
       alert('Deu ruim ao criar sua conta: ' + err.message);
     }finally{
       btn.textContent = 'Continuar'; btn.style.opacity = '1';
+    }
+  }
+
+  async function buscarPerguntaSeguranca(){
+    const email = document.getElementById('input-email-recuperar').value.trim();
+    if(!email){ alert('digita seu e-mail'); return; }
+
+    const btn = document.getElementById('btn-buscar-pergunta');
+    btn.textContent = 'Buscando...'; btn.style.opacity = '.7';
+
+    try{
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/resetar-senha-segura`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ email, apenas_buscar_pergunta: true }),
+      });
+      const resultado = await resp.json();
+      if(!resp.ok) throw new Error(resultado.error || 'não achei essa conta');
+
+      document.getElementById('label-pergunta-mostrada').textContent = resultado.pergunta;
+      document.getElementById('bloco-pergunta-seguranca').style.display = 'block';
+      btn.style.display = 'none';
+    }catch(err){
+      alert(err.message);
+    }finally{
+      btn.textContent = 'Continuar'; btn.style.opacity = '1';
+    }
+  }
+
+  async function resetarSenhaComPergunta(){
+    const email = document.getElementById('input-email-recuperar').value.trim();
+    const resposta = document.getElementById('input-resposta-recuperar').value.trim();
+    const novaSenha = document.getElementById('input-nova-senha-pergunta').value;
+    const novaSenhaConfirma = document.getElementById('input-nova-senha-pergunta-confirma').value;
+
+    if(!resposta){ alert('responde a pergunta de segurança'); return; }
+    if(!novaSenha || novaSenha.length < 6){ alert('a senha nova precisa ter pelo menos 6 caracteres'); return; }
+    if(novaSenha !== novaSenhaConfirma){ alert('as duas senhas não são iguais'); return; }
+
+    const btn = document.getElementById('btn-resetar-com-pergunta');
+    btn.textContent = 'Trocando...'; btn.style.opacity = '.7';
+
+    try{
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/resetar-senha-segura`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ email, resposta, nova_senha: novaSenha }),
+      });
+      const resultado = await resp.json();
+      if(!resp.ok) throw new Error(resultado.error || 'erro desconhecido');
+
+      alert('Senha trocada! Agora é só entrar com ela.');
+      document.getElementById('bloco-pergunta-seguranca').style.display = 'none';
+      document.getElementById('btn-buscar-pergunta').style.display = 'block';
+      document.getElementById('input-email-login').value = email;
+      go('login');
+    }catch(err){
+      alert(err.message);
+    }finally{
+      btn.textContent = 'Trocar senha'; btn.style.opacity = '1';
     }
   }
 
