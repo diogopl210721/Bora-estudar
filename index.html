@@ -461,6 +461,7 @@
   .material-item .m-ic{ font-size:18px; }
   .material-item .m-name{ font-weight:600; font-size:13px; }
   .material-item .m-meta{ font-size:11px; color:var(--ink-soft); }
+  .material-item .m-del{ cursor:pointer; color:var(--coral); font-size:16px; padding:4px 8px; }
   .import-row{ display:flex; gap:8px; margin-bottom:24px; }
   .engage-row{
     display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px dashed var(--line);
@@ -696,6 +697,13 @@
         <div class="back-btn" onclick="verMaterias()">←</div>
         <h2 id="detalhe-titulo">Matéria</h2>
       </div>
+      <div class="hand" id="detalhe-status" style="color:var(--ink-soft); font-size:12.5px; margin-bottom:16px;"></div>
+
+      <div class="step-label">materiais anexados</div>
+      <div id="detalhe-materiais-lista"></div>
+      <div class="new-group-row">
+        <div class="ghost-btn" onclick="adicionarMaterialNaMateria()">+ adicionar material</div>
+      </div>
 
       <div class="section-title"><h2>Resumo</h2></div>
       <div class="quiz-card" style="cursor:default;">
@@ -709,6 +717,8 @@
       <div class="quiz-card" style="cursor:default;" id="detalhe-curiosidades"></div>
 
       <button class="create-btn" id="btn-jogar-quiz" onclick="jogarQuizDaMateria()">🎮 Jogar o quiz dessa matéria</button>
+
+      <div class="ghost-btn" style="border-color:var(--coral); color:var(--coral); margin-top:16px;" onclick="excluirMateriaAtual()">🗑️ excluir essa matéria inteira</div>
     </div>
   </div>
 
@@ -1502,11 +1512,14 @@
       stampsDiv.appendChild(s);
     }
 
-    /* matérias reais do usuário */
-    const { data: materias } = await sb.from('be_materias')
-      .select('id, nome, data_prova, fase_atual, total_fases, created_at')
+    /* matérias reais do usuário — só as ativas aparecem na Home */
+    const { data: todasMaterias } = await sb.from('be_materias')
+      .select('id, nome, data_prova, fase_atual, total_fases, created_at, status')
       .eq('usuario_id', usuarioId)
       .order('created_at', { ascending: false });
+
+    await arquivarVencidas(todasMaterias);
+    const materias = (todasMaterias || []).filter(m => m.status === 'ativa');
 
     const tabsDiv = document.getElementById('home-materias');
     const addTab = tabsDiv.querySelector('.tab.add');
@@ -1557,13 +1570,40 @@
   /* ============ MINHAS MATÉRIAS ============ */
   function verMaterias(){ go('materias'); carregarMateriasLista(); }
 
+  /* arquiva sozinho qualquer matéria cuja prova já passou */
+  async function arquivarVencidas(materias){
+    const hoje = hoje_iso();
+    const vencidas = (materias || []).filter(m => m.status === 'ativa' && m.data_prova && m.data_prova < hoje);
+    for(const m of vencidas){
+      await sb.from('be_materias').update({ status: 'arquivada' }).eq('id', m.id);
+      m.status = 'arquivada';
+    }
+  }
+
+  function cardMateria(m){
+    let diasTexto = 'sem data de prova';
+    if(m.data_prova){
+      const dias = Math.ceil((new Date(m.data_prova) - new Date()) / 86400000);
+      diasTexto = dias >= 0 ? `faltam ${dias} dia${dias===1?'':'s'}` : 'prova já passou';
+    }
+    return `
+      <div class="group-card" style="cursor:pointer;" onclick="abrirMateriaDetalhe('${m.id}','${m.nome.replace(/'/g,"\\'")}')">
+        <div class="group-card-top">
+          <div>
+            <h3>${m.status === 'arquivada' ? '📦 ' : ''}${m.nome}</h3>
+            <span class="hand">${diasTexto} · criada ${new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
   async function carregarMateriasLista(){
     const usuarioId = localStorage.getItem('be_usuario_id');
     const lista = document.getElementById('lista-materias');
     if(!usuarioId) return;
 
     const { data: materias, error } = await sb.from('be_materias')
-      .select('id, nome, data_prova, created_at')
+      .select('id, nome, data_prova, created_at, status')
       .eq('usuario_id', usuarioId)
       .order('created_at', { ascending: false });
 
@@ -1573,26 +1613,27 @@
       return;
     }
 
-    lista.innerHTML = materias.map(m => {
-      let diasTexto = 'sem data de prova';
-      if(m.data_prova){
-        const dias = Math.ceil((new Date(m.data_prova) - new Date()) / 86400000);
-        diasTexto = dias >= 0 ? `faltam ${dias} dia${dias===1?'':'s'}` : 'prova já passou';
-      }
-      return `
-        <div class="group-card" style="cursor:pointer;" onclick="abrirMateriaDetalhe('${m.id}','${m.nome.replace(/'/g,"\\'")}')">
-          <div class="group-card-top">
-            <div>
-              <h3>${m.nome}</h3>
-              <span class="hand">${diasTexto} · criada ${new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+    await arquivarVencidas(materias);
+
+    const ativas = materias.filter(m => m.status === 'ativa');
+    const arquivadas = materias.filter(m => m.status === 'arquivada');
+
+    let html = '';
+    if(ativas.length > 0){
+      html += `<div class="step-label">ativas</div>` + ativas.map(cardMateria).join('');
+    }
+    if(arquivadas.length > 0){
+      html += `<div class="step-label" style="margin-top:18px;">arquivadas</div>` + arquivadas.map(cardMateria).join('');
+    }
+    if(ativas.length === 0 && arquivadas.length === 0){
+      html = `<p class="hand" style="color:var(--ink-soft); text-align:center;">você ainda não criou nenhuma matéria — toca em "+ nova matéria" pra começar</p>`;
+    }
+    lista.innerHTML = html;
   }
 
   let materiaDetalheId = null;
   let materiaDetalheQuiz = [];
+  let materiaAlvoId = null; // quando setado, "criar jornada" adiciona material nessa matéria em vez de criar uma nova
 
   async function abrirMateriaDetalhe(materiaId, nome){
     go('materia-detalhe');
@@ -1601,6 +1642,39 @@
     document.getElementById('detalhe-resumo').textContent = 'carregando...';
     document.getElementById('detalhe-mapa').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
     document.getElementById('detalhe-curiosidades').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+    document.getElementById('detalhe-materiais-lista').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+
+    const { data: materiaInfo } = await sb.from('be_materias').select('status, data_prova').eq('id', materiaId).single();
+    if(materiaInfo){
+      let diasTexto = 'sem data de prova';
+      if(materiaInfo.data_prova){
+        const dias = Math.ceil((new Date(materiaInfo.data_prova) - new Date()) / 86400000);
+        diasTexto = dias >= 0 ? `faltam ${dias} dia${dias===1?'':'s'} pra prova` : 'data da prova já passou';
+      }
+      document.getElementById('detalhe-status').textContent = (materiaInfo.status === 'arquivada' ? '📦 arquivada · ' : '') + diasTexto;
+    }
+
+    /* lista de materiais anexados, com opção de excluir cada um */
+    const { data: materiais } = await sb.from('be_materiais')
+      .select('id, tipo, created_at')
+      .eq('materia_id', materiaId)
+      .order('created_at', { ascending: false });
+    const icones = { foto: '📷', pdf: '📄', youtube: '▶️', link: '🔗' };
+    const nomesTipos = { foto: 'Foto', pdf: 'PDF', youtube: 'Vídeo do YouTube', link: 'Link de site' };
+    const listaDiv = document.getElementById('detalhe-materiais-lista');
+    if(!materiais || materiais.length === 0){
+      listaDiv.innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">nenhum material anexado ainda.</p>`;
+    } else {
+      listaDiv.innerHTML = materiais.map(m => `
+        <div class="material-item">
+          <span class="m-ic">${icones[m.tipo] || '📄'}</span>
+          <div style="flex:1;">
+            <div class="m-name">${nomesTipos[m.tipo] || m.tipo}</div>
+            <div class="m-meta">adicionado ${new Date(m.created_at).toLocaleDateString('pt-BR')}</div>
+          </div>
+          <span class="m-del" onclick="excluirMaterialAnexado('${m.id}')">✕</span>
+        </div>`).join('');
+    }
 
     const { data: conteudos } = await sb.from('be_conteudo_gerado').select('id, tipo, conteudo').eq('materia_id', materiaId);
     if(!conteudos || conteudos.length === 0){
@@ -1646,6 +1720,30 @@
     }
   }
 
+  function adicionarMaterialNaMateria(){
+    const nomeAtual = document.getElementById('detalhe-titulo').textContent;
+    const idAlvo = materiaDetalheId;
+    novaMateria();
+    materiaAlvoId = idAlvo;
+    document.getElementById('input-materia').value = nomeAtual;
+    document.getElementById('input-materia').disabled = true;
+    document.querySelector('#screen-upload h2').textContent = 'Adicionar material';
+  }
+
+  async function excluirMaterialAnexado(materialId){
+    if(!confirm('Excluir esse material? O quiz/resumo continuam com o que já foi gerado até aqui.')) return;
+    const { error } = await sb.from('be_materiais').delete().eq('id', materialId);
+    if(error){ alert('Deu ruim: ' + error.message); return; }
+    abrirMateriaDetalhe(materiaDetalheId, document.getElementById('detalhe-titulo').textContent);
+  }
+
+  async function excluirMateriaAtual(){
+    if(!confirm('Excluir essa matéria inteira? Isso apaga também todos os materiais, quiz e histórico dela. Não dá pra desfazer.')) return;
+    const { error } = await sb.from('be_materias').delete().eq('id', materiaDetalheId);
+    if(error){ alert('Deu ruim: ' + error.message); return; }
+    verMaterias();
+  }
+
   function jogarQuizDaMateria(){
     if(!materiaDetalheQuiz || materiaDetalheQuiz.length === 0){ alert('Essa matéria ainda não tem quiz gerado.'); return; }
     iniciarQuiz({
@@ -1657,11 +1755,12 @@
   }
 
   function novaMateria(){
+    materiaAlvoId = null;
     const campoMateria = document.getElementById('input-materia');
     const campoData = document.getElementById('input-data-prova');
     const campoYoutube = document.getElementById('input-youtube');
     const campoLink = document.getElementById('input-link');
-    if(campoMateria) campoMateria.value = '';
+    if(campoMateria){ campoMateria.value = ''; campoMateria.disabled = false; }
     if(campoData) campoData.value = '';
     if(campoYoutube) campoYoutube.value = '';
     if(campoLink) campoLink.value = '';
@@ -1677,6 +1776,8 @@
     const pdfStatus = document.getElementById('pdf-status');
     if(pdfIcone) pdfIcone.textContent = '📄';
     if(pdfStatus) pdfStatus.textContent = 'toque pra escolher um PDF do material';
+    const titulo = document.querySelector('#screen-upload h2');
+    if(titulo) titulo.textContent = 'Nova matéria de estudo';
     go('upload');
   }
 
@@ -1752,10 +1853,16 @@
     btn.textContent = '✨ Gerando com IA... isso leva uns 15-30s'; btn.disabled = true; btn.style.opacity = '.7';
 
     try{
-      const { data: materia, error: materiaErr } = await sb.from('be_materias')
-        .insert({ usuario_id: usuarioId, nome: materiaSelecionada, data_prova: dataProva || null })
-        .select().single();
-      if(materiaErr) throw materiaErr;
+      let materiaIdAlvo;
+      if(materiaAlvoId){
+        materiaIdAlvo = materiaAlvoId;
+      } else {
+        const { data: materia, error: materiaErr } = await sb.from('be_materias')
+          .insert({ usuario_id: usuarioId, nome: materiaSelecionada, data_prova: dataProva || null })
+          .select().single();
+        if(materiaErr) throw materiaErr;
+        materiaIdAlvo = materia.id;
+      }
 
       const { data: sessaoData } = await sb.auth.getSession();
       const accessToken = sessaoData && sessaoData.session ? sessaoData.session.access_token : null;
@@ -1769,7 +1876,7 @@
           'apikey': SUPABASE_KEY,
         },
         body: JSON.stringify({
-          materia_id: materia.id,
+          materia_id: materiaIdAlvo,
           ...payloadExtra,
         }),
       });
