@@ -612,6 +612,11 @@
       </div>
 
       <div class="onboard-field">
+        <label>confirmar senha</label>
+        <input type="password" id="input-senha-cadastro-confirma" placeholder="digita a senha de novo">
+      </div>
+
+      <div class="onboard-field">
         <label id="label-escola">nome da escola que você estuda</label>
         <input type="text" id="input-escola" placeholder="ex: Colégio Positivo">
       </div>
@@ -936,9 +941,19 @@
         <label>cidade</label>
         <input type="text" id="input-editar-cidade">
         <button class="go-btn" id="btn-salvar-perfil" onclick="salvarPerfil()">Salvar alterações</button>
-        <p class="hand" style="color:var(--ink-soft); font-size:12px; text-align:center; margin:12px 0 0;">
-          login por e-mail e senha ainda não está disponível nessa versão — por enquanto sua conta fica salva neste aparelho.
-        </p>
+      </div>
+
+      <div class="new-group-row">
+        <div class="ghost-btn" onclick="toggleForm('trocar-senha')">🔒 trocar senha</div>
+      </div>
+      <div class="inline-form" id="form-trocar-senha">
+        <label>senha atual</label>
+        <input type="password" id="input-senha-atual" placeholder="sua senha de hoje">
+        <label>senha nova</label>
+        <input type="password" id="input-senha-nova" placeholder="mínimo 6 caracteres">
+        <label>confirmar senha nova</label>
+        <input type="password" id="input-senha-nova-confirma" placeholder="repete a senha nova">
+        <button class="go-btn" id="btn-trocar-senha" onclick="trocarSenha()">Trocar senha</button>
       </div>
 
       <div class="section-title"><h2>Conquistas</h2></div>
@@ -1171,6 +1186,42 @@
       alert('Deu ruim ao salvar: ' + err.message);
     }finally{
       btn.textContent = 'Salvar alterações'; btn.disabled = false;
+    }
+  }
+
+  async function trocarSenha(){
+    const senhaAtual = document.getElementById('input-senha-atual').value;
+    const senhaNova = document.getElementById('input-senha-nova').value;
+    const senhaNovaConfirma = document.getElementById('input-senha-nova-confirma').value;
+
+    if(!senhaAtual){ alert('digita sua senha atual'); return; }
+    if(!senhaNova || senhaNova.length < 6){ alert('a senha nova precisa ter pelo menos 6 caracteres'); return; }
+    if(senhaNova !== senhaNovaConfirma){ alert('a senha nova e a confirmação não são iguais'); return; }
+
+    const btn = document.getElementById('btn-trocar-senha');
+    btn.textContent = 'Trocando...'; btn.disabled = true;
+
+    try{
+      const { data: sessaoData } = await sb.auth.getSession();
+      const email = sessaoData && sessaoData.session ? sessaoData.session.user.email : null;
+      if(!email){ alert('sua sessão expirou, entra de novo.'); go('login'); return; }
+
+      /* confere a senha atual tentando logar de novo com ela */
+      const { error: erroConfirma } = await sb.auth.signInWithPassword({ email, password: senhaAtual });
+      if(erroConfirma){ alert('senha atual incorreta.'); return; }
+
+      const { error: erroTroca } = await sb.auth.updateUser({ password: senhaNova });
+      if(erroTroca) throw erroTroca;
+
+      alert('Senha trocada com sucesso!');
+      document.getElementById('input-senha-atual').value = '';
+      document.getElementById('input-senha-nova').value = '';
+      document.getElementById('input-senha-nova-confirma').value = '';
+      document.getElementById('form-trocar-senha').classList.remove('on');
+    }catch(err){
+      alert('Deu ruim ao trocar a senha: ' + err.message);
+    }finally{
+      btn.textContent = 'Trocar senha'; btn.disabled = false;
     }
   }
 
@@ -1454,9 +1505,11 @@
     const nome = document.getElementById('input-nome').value.trim();
     const email = document.getElementById('input-email-cadastro').value.trim();
     const senha = document.getElementById('input-senha-cadastro').value;
+    const senhaConfirma = document.getElementById('input-senha-cadastro-confirma').value;
     if(!nome){ alert('digite seu nome pra continuar'); return; }
     if(!email){ alert('digite seu e-mail'); return; }
     if(!senha || senha.length < 6){ alert('a senha precisa ter pelo menos 6 caracteres'); return; }
+    if(senha !== senhaConfirma){ alert('as duas senhas não são iguais, confere de novo'); return; }
 
     const btn = document.getElementById('btn-cadastro');
     btn.textContent = 'Criando...'; btn.style.opacity = '.7';
