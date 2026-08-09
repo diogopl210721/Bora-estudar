@@ -521,6 +521,11 @@
   }
   .onboard-field .opt{ font-family:'Kalam',cursive; font-size:12px; color:var(--lilac); margin-left:4px; }
   .onboard-divider{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:#B8AF95; margin:22px 0; display:flex; align-items:center; gap:10px; }
+  .google-btn{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:10px;
+    background:#fff; color:#3c4043; border:2px solid var(--ink); border-radius:999px; padding:13px;
+    font-family:'Inter'; font-weight:600; font-size:14.5px; cursor:pointer; box-shadow:2px 2px 0 var(--ink);
+  }
   .onboard-divider::before, .onboard-divider::after{ content:""; flex:1; height:1px; background:var(--line); }
   .onboard-btn{
     width:100%; background:var(--coral); color:#fff; border:2px solid var(--ink); border-radius:999px; padding:15px;
@@ -655,6 +660,12 @@
 
       <button class="onboard-btn" id="btn-login" onclick="entrarComEmailSenha()">Entrar</button>
       <span class="onboard-skip" onclick="go('recuperar')" style="display:block; margin-bottom:20px;">esqueci minha senha</span>
+
+      <div class="onboard-divider">ou</div>
+      <button class="google-btn" onclick="entrarComGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.85 2.09-1.8 2.73v2.27h2.92c1.7-1.57 2.68-3.87 2.68-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.27c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.33C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.7c-.18-.54-.28-1.11-.28-1.7s.1-1.16.28-1.7V4.97H.96C.35 6.17 0 7.55 0 9s.35 2.83.96 4.03l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.97l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+        Entrar com Google
+      </button>
 
       <div class="onboard-divider">ainda não tem conta?</div>
       <div class="ghost-btn" style="border-color:var(--ink-blue); color:var(--ink-blue); font-weight:700;" onclick="go('cadastro')">✨ criar minha conta</div>
@@ -1553,13 +1564,18 @@
     return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
-  async function criarPerfilSeNaoExistir(authUserId){
+  async function criarPerfilSeNaoExistir(usuarioAuth){
+    const authUserId = typeof usuarioAuth === 'string' ? usuarioAuth : usuarioAuth.id;
     const { data: existente } = await sb.from('be_usuarios').select('id').eq('auth_user_id', authUserId).maybeSingle();
     if(existente){ localStorage.setItem('be_usuario_id', existente.id); return existente.id; }
 
-    const nome = document.getElementById('input-nome').value.trim() || 'Aluno(a)';
-    const escola = document.getElementById('input-escola').value.trim();
-    const cidade = document.getElementById('input-cidade').value.trim();
+    const nomeDoFormulario = document.getElementById('input-nome') ? document.getElementById('input-nome').value.trim() : '';
+    const nomeDoGoogle = (typeof usuarioAuth === 'object' && usuarioAuth.user_metadata)
+      ? (usuarioAuth.user_metadata.full_name || usuarioAuth.user_metadata.name || '')
+      : '';
+    const nome = nomeDoFormulario || nomeDoGoogle || 'Aluno(a)';
+    const escola = document.getElementById('input-escola') ? document.getElementById('input-escola').value.trim() : '';
+    const cidade = document.getElementById('input-cidade') ? document.getElementById('input-cidade').value.trim() : '';
     const pergunta = document.getElementById('input-pergunta-seguranca') ? document.getElementById('input-pergunta-seguranca').value.trim() : '';
     const resposta = document.getElementById('input-resposta-seguranca') ? document.getElementById('input-resposta-seguranca').value.trim() : '';
 
@@ -1603,7 +1619,7 @@
         return;
       }
 
-      await criarPerfilSeNaoExistir(data.user.id);
+      await criarPerfilSeNaoExistir(data.user);
       go('codigo');
     }catch(err){
       alert('Deu ruim ao criar sua conta: ' + err.message);
@@ -1672,6 +1688,16 @@
     }
   }
 
+  async function entrarComGoogle(){
+    const urlVolta = window.location.origin + window.location.pathname;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: urlVolta },
+    });
+    if(error) alert('Deu ruim ao abrir o Google: ' + error.message);
+    /* a página vai ser redirecionada pro Google e volta sozinha, o boot() cuida do resto */
+  }
+
   async function entrarComEmailSenha(){
     const email = document.getElementById('input-email-login').value.trim();
     const senha = document.getElementById('input-senha-login').value;
@@ -1684,7 +1710,7 @@
       const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
       if(error) throw error;
 
-      await criarPerfilSeNaoExistir(data.user.id);
+      await criarPerfilSeNaoExistir(data.user);
       go('home');
       carregarHome();
     }catch(err){
@@ -1731,7 +1757,7 @@
       alert('Senha criada! Já pode estudar 🎉');
       const { data: sessaoData } = await sb.auth.getSession();
       if(sessaoData && sessaoData.session){
-        await criarPerfilSeNaoExistir(sessaoData.session.user.id);
+        await criarPerfilSeNaoExistir(sessaoData.session.user);
       }
       go('home');
       carregarHome();
@@ -2387,7 +2413,7 @@
     }
     const { data } = await sb.auth.getSession();
     if(data && data.session && data.session.user){
-      await criarPerfilSeNaoExistir(data.session.user.id);
+      await criarPerfilSeNaoExistir(data.session.user);
       go('home');
       carregarHome();
     } else {
