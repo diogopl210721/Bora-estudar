@@ -82,16 +82,7 @@
       padding:0; justify-content:flex-start; align-items:stretch;
       background:var(--paper-deep);
     }
-    .app-shell.sem-sidebar{
-      justify-content:center; align-items:center; padding:24px;
-    }
     .sidebar-hidden{ display:none !important; }
-    .app-shell.sem-sidebar .phone{
-      width:560px !important; max-width:560px !important; flex:none !important;
-      height:calc(100dvh - 48px) !important; border-radius:24px !important;
-      box-shadow:0 40px 90px -30px rgba(32,38,47,.35), 0 0 0 1px rgba(184,168,120,.3) !important;
-    }
-    .app-shell.sem-sidebar .spiral{ display:block !important; }
 
     .sidebar{
       display:flex; flex-direction:column;
@@ -139,6 +130,7 @@
     .spiral{ display:none; }
     .navbar, .persistent-credit{ display:none !important; }
     .sheet{ padding-left:56px !important; padding-right:56px !important; max-width:960px; margin:0 auto; }
+    .onboard-wrap{ max-width:480px; margin:0 auto; padding-top:56px; }
 
     /* Home vira um painel: cards organizados lado a lado em vez de empilhados */
     #screen-home .sheet{
@@ -1139,7 +1131,6 @@
     document.getElementById('navbar').style.display = semNav ? 'none' : 'flex';
     document.getElementById('persistentCredit').classList.toggle('no-nav', semNav);
     document.getElementById('sidebar').classList.toggle('sidebar-hidden', semNav);
-    document.querySelector('.app-shell').classList.toggle('sem-sidebar', semNav);
   }
 
   /* ============ PERFIL ============ */
