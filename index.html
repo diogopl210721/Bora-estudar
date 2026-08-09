@@ -649,7 +649,46 @@
       </div>
 
       <button class="onboard-btn" id="btn-login" onclick="entrarComEmailSenha()">Entrar</button>
+      <span class="onboard-skip" onclick="go('recuperar')">esqueci minha senha</span>
       <span class="onboard-skip" onclick="go('cadastro')">ainda não tenho conta, criar</span>
+    </div>
+  </div>
+
+  <!-- ============ RECUPERAR SENHA ============ -->
+  <div class="screen" id="screen-recuperar">
+    <div class="onboard-wrap">
+      <img src="logo.png" alt="Bora Estudar" class="logo-img small">
+      <h1>Esqueceu a senha?</h1>
+      <span class="hand">acontece 🙂 manda seu e-mail que a gente te ajuda</span>
+
+      <div class="onboard-field">
+        <label>e-mail</label>
+        <input type="email" id="input-email-recuperar" placeholder="voce@email.com">
+      </div>
+
+      <button class="onboard-btn" id="btn-recuperar" onclick="enviarRecuperacaoSenha()">Enviar link de recuperação</button>
+      <span class="onboard-skip" onclick="go('login')">lembrei, quero entrar</span>
+    </div>
+  </div>
+
+  <!-- ============ DEFINIR NOVA SENHA (vem do link do e-mail) ============ -->
+  <div class="screen" id="screen-nova-senha">
+    <div class="onboard-wrap">
+      <img src="logo.png" alt="Bora Estudar" class="logo-img small">
+      <h1>Criar nova senha</h1>
+      <span class="hand">escolhe uma senha nova pra sua conta</span>
+
+      <div class="onboard-field">
+        <label>senha nova</label>
+        <input type="password" id="input-nova-senha-recuperacao" placeholder="mínimo 6 caracteres">
+      </div>
+
+      <div class="onboard-field">
+        <label>confirmar senha nova</label>
+        <input type="password" id="input-nova-senha-recuperacao-confirma" placeholder="repete a senha nova">
+      </div>
+
+      <button class="onboard-btn" id="btn-definir-nova-senha" onclick="definirNovaSenha()">Salvar nova senha</button>
     </div>
   </div>
 
@@ -1067,7 +1106,7 @@
     document.getElementById('screen-' + name).classList.add('active');
     document.getElementById('screen-' + name).scrollTop = 0;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.s === name));
-    const semNav = (name === 'boasvindas' || name === 'cadastro' || name === 'codigo' || name === 'login');
+    const semNav = (name === 'boasvindas' || name === 'cadastro' || name === 'codigo' || name === 'login' || name === 'recuperar' || name === 'nova-senha');
     document.getElementById('navbar').style.display = semNav ? 'none' : 'flex';
     document.getElementById('persistentCredit').classList.toggle('no-nav', semNav);
     document.getElementById('sidebar').classList.toggle('sidebar-hidden', semNav);
@@ -1554,6 +1593,61 @@
       btn.textContent = 'Entrar'; btn.style.opacity = '1';
     }
   }
+
+  async function enviarRecuperacaoSenha(){
+    const email = document.getElementById('input-email-recuperar').value.trim();
+    if(!email){ alert('digita seu e-mail'); return; }
+
+    const btn = document.getElementById('btn-recuperar');
+    btn.textContent = 'Enviando...'; btn.style.opacity = '.7';
+
+    try{
+      const urlVolta = window.location.origin + window.location.pathname;
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: urlVolta });
+      if(error) throw error;
+
+      alert('Te mandamos um link no e-mail ' + email + '. Abre ele nesse mesmo aparelho pra criar sua senha nova.');
+      go('login');
+    }catch(err){
+      alert('Deu ruim ao enviar: ' + err.message);
+    }finally{
+      btn.textContent = 'Enviar link de recuperação'; btn.style.opacity = '1';
+    }
+  }
+
+  async function definirNovaSenha(){
+    const senhaNova = document.getElementById('input-nova-senha-recuperacao').value;
+    const senhaConfirma = document.getElementById('input-nova-senha-recuperacao-confirma').value;
+    if(!senhaNova || senhaNova.length < 6){ alert('a senha precisa ter pelo menos 6 caracteres'); return; }
+    if(senhaNova !== senhaConfirma){ alert('as duas senhas não são iguais'); return; }
+
+    const btn = document.getElementById('btn-definir-nova-senha');
+    btn.textContent = 'Salvando...'; btn.style.opacity = '.7';
+
+    try{
+      const { error } = await sb.auth.updateUser({ password: senhaNova });
+      if(error) throw error;
+
+      alert('Senha criada! Já pode estudar 🎉');
+      const { data: sessaoData } = await sb.auth.getSession();
+      if(sessaoData && sessaoData.session){
+        await criarPerfilSeNaoExistir(sessaoData.session.user.id);
+      }
+      go('home');
+      carregarHome();
+    }catch(err){
+      alert('Deu ruim ao salvar a senha: ' + err.message);
+    }finally{
+      btn.textContent = 'Salvar nova senha'; btn.style.opacity = '1';
+    }
+  }
+
+  /* quando a pessoa clica no link do e-mail de recuperação, o Supabase manda esse evento */
+  sb.auth.onAuthStateChange((event) => {
+    if(event === 'PASSWORD_RECOVERY'){
+      go('nova-senha');
+    }
+  });
 
   async function entrarComCodigo(){
     const codigo = document.getElementById('input-codigo').value.trim().toUpperCase();
@@ -2186,6 +2280,11 @@
 
   /* ao carregar a página: confere se já tem uma sessão de login válida */
   (async function boot(){
+    /* se veio do link de recuperação de senha, espera o evento PASSWORD_RECOVERY tratar */
+    if(window.location.hash.includes('type=recovery')){
+      go('nova-senha');
+      return;
+    }
     const { data } = await sb.auth.getSession();
     if(data && data.session && data.session.user){
       await criarPerfilSeNaoExistir(data.session.user.id);
