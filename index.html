@@ -93,25 +93,39 @@
     .sidebar{
       display:flex; flex-direction:column;
       width:clamp(240px, 17vw, 320px); flex-shrink:0;
-      background:var(--ink-blue-deep);
-      padding:clamp(30px, 2.4vw, 44px) clamp(20px, 1.6vw, 28px);
+      background:
+        radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.5px),
+        linear-gradient(165deg, #1E3A5C 0%, var(--ink-blue-deep) 55%, #16283F 100%);
+      background-size: 16px 16px, 100% 100%;
+      padding:clamp(30px, 2.4vw, 44px) clamp(18px, 1.6vw, 26px);
       position:sticky; top:0; height:100dvh;
       border-right:1px solid rgba(255,255,255,.06);
     }
-    .sidebar-logo{ width:clamp(150px, 11vw, 200px); margin-bottom:clamp(16px, 2vw, 26px); }
-    .sidebar-divider{ height:1px; background:rgba(255,255,255,.1); margin-bottom:clamp(22px, 2.4vw, 34px); }
-    .sidebar-nav{ display:flex; flex-direction:column; gap:clamp(4px, .5vw, 8px); flex:1; }
+    .sidebar-logo{ width:clamp(150px, 11vw, 200px); margin-bottom:clamp(10px, 1.4vw, 18px); filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); }
+    .sidebar-tagline{ font-family:'Kalam',cursive; color:var(--highlighter); font-size:clamp(12.5px, .9vw, 14.5px); margin-bottom:clamp(20px, 2.2vw, 30px); display:block; transform:rotate(-1deg); }
+    .sidebar-nav{ display:flex; flex-direction:column; gap:clamp(7px, .7vw, 11px); flex:1; }
     .side-item{
-      display:flex; align-items:center; gap:clamp(13px, 1vw, 17px);
-      background:none; border:none; border-left:3px solid transparent; color:rgba(255,255,255,.6);
-      font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(15px, 1.1vw, 18px);
-      padding:clamp(12px, 1vw, 15px) clamp(14px, 1.1vw, 18px); border-radius:0 12px 12px 0; cursor:pointer; text-align:left;
-      transition:background .15s ease, color .15s ease;
+      display:flex; align-items:center; gap:clamp(12px, 1vw, 15px);
+      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-left:3px solid transparent;
+      color:rgba(255,255,255,.68);
+      font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:clamp(14.5px, 1.05vw, 17px);
+      padding:clamp(10px, .9vw, 13px) clamp(12px, 1vw, 16px); border-radius:14px; cursor:pointer; text-align:left;
+      transition:transform .15s ease, background .15s ease, border-color .15s ease;
     }
-    .side-item:hover{ background:rgba(255,255,255,.06); color:rgba(255,255,255,.9); }
-    .side-item .nav-icon{ font-size:clamp(20px, 1.6vw, 26px); width:auto; height:auto; opacity:.9; }
-    .side-item.active{ background:rgba(255,255,255,.1); color:#fff; border-left-color:var(--highlighter); }
-    .sidebar-foot{ display:flex; flex-direction:column; gap:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,.08); }
+    .side-item:hover{ background:rgba(255,255,255,.08); color:#fff; transform:translateX(2px); }
+    .side-icon-badge{
+      width:clamp(32px, 2.4vw, 40px); height:clamp(32px, 2.4vw, 40px); border-radius:10px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center; font-size:clamp(16px, 1.3vw, 20px);
+      box-shadow:0 3px 0 rgba(0,0,0,.22);
+    }
+    .side-item[data-s="home"] .side-icon-badge{ background:var(--coral); }
+    .side-item[data-s="materias"] .side-icon-badge{ background:var(--mint); }
+    .side-item[data-s="ranking"] .side-icon-badge{ background:var(--highlighter); }
+    .side-item[data-s="grupos"] .side-icon-badge{ background:var(--lilac); }
+    .side-item[data-s="perfil"] .side-icon-badge{ background:#6FA8DC; }
+    .side-item.active{ background:rgba(255,255,255,.12); color:#fff; border-left-color:var(--highlighter); box-shadow:2px 3px 0 rgba(0,0,0,.15); }
+    .side-item.active .side-icon-badge{ transform:scale(1.08) rotate(-4deg); }
+    .sidebar-foot{ display:flex; flex-direction:column; gap:16px; padding-top:16px; border-top:1px dashed rgba(255,255,255,.15); margin-top:12px; }
     .sidebar-foot .energy-pill{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); color:#fff; box-shadow:none; width:fit-content; font-size:clamp(13px, .95vw, 16px); padding:clamp(6px,.5vw,9px) clamp(12px,1vw,16px) clamp(6px,.5vw,9px) clamp(8px,.7vw,12px); }
     .sidebar-credit{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:rgba(255,255,255,.4); line-height:1.5; }
 
@@ -462,6 +476,25 @@
   .material-item .m-name{ font-weight:600; font-size:13px; }
   .material-item .m-meta{ font-size:11px; color:var(--ink-soft); }
   .material-item .m-del{ cursor:pointer; color:var(--coral); font-size:16px; padding:4px 8px; }
+
+  .content-menu{ display:grid; grid-template-columns:repeat(2, 1fr); gap:9px; margin-bottom:16px; }
+  .content-menu-btn{
+    display:flex; flex-direction:column; align-items:center; gap:5px; padding:14px 8px; border-radius:14px;
+    border:2px solid var(--ink); background:var(--paper); font-family:'Space Grotesk'; font-weight:700; font-size:12.5px;
+    cursor:pointer; box-shadow:2px 2px 0 var(--ink); text-align:center;
+  }
+  .content-menu-btn span{ font-size:22px; }
+  .content-menu-btn.on{ background:var(--ink-blue); color:#fff; border-color:var(--ink-blue-deep); }
+
+  .resultado-final-card{
+    background:linear-gradient(135deg, var(--mint), #5A8F72); color:#fff; border-radius:18px; padding:20px;
+    margin-bottom:22px; box-shadow:3px 4px 0 rgba(32,38,47,.3);
+  }
+  .resultado-final-card h3{ font-size:16px; margin-bottom:4px; }
+  .resultado-final-card .grande{ font-family:'Space Grotesk'; font-weight:700; font-size:32px; }
+  .nota-real-row{ display:flex; gap:10px; align-items:center; margin-top:14px; }
+  .nota-real-row input{ width:70px; border:none; border-radius:10px; padding:9px 12px; font-family:'IBM Plex Mono'; font-weight:700; text-align:center; }
+  .nota-real-row button{ background:#fff; color:var(--ink-blue-deep); border:none; border-radius:999px; padding:9px 16px; font-weight:700; font-family:'Space Grotesk'; cursor:pointer; font-size:13px; }
   .import-row{ display:flex; gap:8px; margin-bottom:24px; }
   .engage-row{
     display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px dashed var(--line);
@@ -528,13 +561,13 @@
 <div class="app-shell">
   <div class="sidebar" id="sidebar">
     <img src="logo.png" alt="Bora Estudar" class="sidebar-logo">
-    <div class="sidebar-divider"></div>
+    <span class="sidebar-tagline">bora virar essa prova! ✏️</span>
     <nav class="sidebar-nav">
-      <button class="nav-item side-item" data-s="home" onclick="go('home')"><span class="nav-icon">🏠</span> Início</button>
-      <button class="nav-item side-item" data-s="materias" onclick="verMaterias()"><span class="nav-icon">📚</span> Matérias</button>
-      <button class="nav-item side-item" data-s="ranking" onclick="verRanking()"><span class="nav-icon">🏆</span> Ranking</button>
-      <button class="nav-item side-item" data-s="grupos" onclick="verGrupos()"><span class="nav-icon">👥</span> Grupos</button>
-      <button class="nav-item side-item" data-s="perfil" onclick="verPerfil()"><span class="nav-icon">👤</span> Perfil</button>
+      <button class="nav-item side-item" data-s="home" onclick="go('home')"><span class="side-icon-badge">🏠</span> Início</button>
+      <button class="nav-item side-item" data-s="materias" onclick="verMaterias()"><span class="side-icon-badge">📚</span> Matérias</button>
+      <button class="nav-item side-item" data-s="ranking" onclick="verRanking()"><span class="side-icon-badge">🏆</span> Ranking</button>
+      <button class="nav-item side-item" data-s="grupos" onclick="verGrupos()"><span class="side-icon-badge">👥</span> Grupos</button>
+      <button class="nav-item side-item" data-s="perfil" onclick="verPerfil()"><span class="side-icon-badge">👤</span> Perfil</button>
     </nav>
     <div class="sidebar-foot">
       <div class="energy-pill" id="sidebar-energia">⚡ 7</div>
@@ -699,24 +732,36 @@
       </div>
       <div class="hand" id="detalhe-status" style="color:var(--ink-soft); font-size:12.5px; margin-bottom:16px;"></div>
 
+      <div id="detalhe-resultado-final-wrap"></div>
+
       <div class="step-label">materiais anexados</div>
       <div id="detalhe-materiais-lista"></div>
       <div class="new-group-row">
         <div class="ghost-btn" onclick="adicionarMaterialNaMateria()">+ adicionar material</div>
       </div>
 
-      <div class="section-title"><h2>Resumo</h2></div>
-      <div class="quiz-card" style="cursor:default;">
-        <p id="detalhe-resumo" style="font-size:13.5px; line-height:1.6; margin:0;">carregando...</p>
+      <div class="step-label">o que você quer ver?</div>
+      <div class="content-menu">
+        <div class="content-menu-btn on" data-tipo="resumo" onclick="mostrarConteudo('resumo')"><span>📖</span>Resumo</div>
+        <div class="content-menu-btn" data-tipo="mapa" onclick="mostrarConteudo('mapa')"><span>🧠</span>Mapa Mental</div>
+        <div class="content-menu-btn" data-tipo="curiosidades" onclick="mostrarConteudo('curiosidades')"><span>💡</span>Curiosidades</div>
+        <div class="content-menu-btn" data-tipo="quiz" onclick="mostrarConteudo('quiz')"><span>📝</span>Quiz</div>
+        <div class="content-menu-btn" data-tipo="prova" onclick="mostrarConteudo('prova')"><span>🎓</span>Prova</div>
       </div>
 
-      <div class="section-title"><h2>Mapa mental</h2></div>
-      <div class="quiz-card" style="cursor:default;" id="detalhe-mapa"></div>
-
-      <div class="section-title"><h2>Curiosidades</h2></div>
-      <div class="quiz-card" style="cursor:default;" id="detalhe-curiosidades"></div>
-
-      <button class="create-btn" id="btn-jogar-quiz" onclick="jogarQuizDaMateria()">🎮 Jogar o quiz dessa matéria</button>
+      <div class="quiz-card" style="cursor:default;" id="painel-resumo">
+        <p id="detalhe-resumo" style="font-size:13.5px; line-height:1.6; margin:0;">carregando...</p>
+      </div>
+      <div class="quiz-card" style="cursor:default; display:none;" id="painel-mapa"></div>
+      <div class="quiz-card" style="cursor:default; display:none;" id="painel-curiosidades"></div>
+      <div class="quiz-card" style="cursor:default; display:none; text-align:center;" id="painel-quiz">
+        <p class="hand" style="color:var(--ink-soft); margin-bottom:12px;">5 perguntas rápidas de prática</p>
+        <button class="create-btn" id="btn-jogar-quiz" onclick="jogarQuizDaMateria()" style="margin:0;">🎮 Jogar o quiz</button>
+      </div>
+      <div class="quiz-card" style="cursor:default; display:none; text-align:center;" id="painel-prova">
+        <p class="hand" style="color:var(--ink-soft); margin-bottom:12px;">8 perguntas, simulando a prova de verdade</p>
+        <button class="create-btn" id="btn-jogar-prova" onclick="jogarProvaDaMateria()" style="margin:0;">🎓 Fazer a prova</button>
+      </div>
 
       <div class="ghost-btn" style="border-color:var(--coral); color:var(--coral); margin-top:16px;" onclick="excluirMateriaAtual()">🗑️ excluir essa matéria inteira</div>
     </div>
@@ -1483,6 +1528,17 @@
 
   function pularCodigo(){ go('home'); carregarHome(); }
 
+  const LIMITE_ENERGIA_DIARIO = 7;
+
+  async function atualizarEnergiaExibida(usuarioId){
+    const hoje = hoje_iso();
+    const { data: uso } = await sb.from('be_uso_ia').select('quantidade').eq('usuario_id', usuarioId).eq('data', hoje).maybeSingle();
+    const restante = Math.max(0, LIMITE_ENERGIA_DIARIO - (uso ? uso.quantidade : 0));
+    document.getElementById('home-energia').textContent = '⚡ ' + restante;
+    const sideEnergia = document.getElementById('sidebar-energia');
+    if(sideEnergia) sideEnergia.textContent = '⚡ ' + restante;
+  }
+
   async function carregarHome(){
     const usuarioId = localStorage.getItem('be_usuario_id');
     if(!usuarioId) return;
@@ -1495,9 +1551,7 @@
       return;
     }
     document.getElementById('home-saudacao').textContent = 'Oi, ' + usuario.nome.split(' ')[0] + ' 👋';
-    document.getElementById('home-energia').textContent = '⚡ ' + usuario.energia;
-    const sideEnergia = document.getElementById('sidebar-energia');
-    if(sideEnergia) sideEnergia.textContent = '⚡ ' + usuario.energia;
+    await atualizarEnergiaExibida(usuarioId);
     document.getElementById('home-streak').textContent = usuario.streak_atual + ' dias 🔥';
 
     /* carimbos de sequência: reflete o streak real, sem inventar dias */
@@ -1633,6 +1687,7 @@
 
   let materiaDetalheId = null;
   let materiaDetalheQuiz = [];
+  let materiaDetalheProva = [];
   let materiaAlvoId = null; // quando setado, "criar jornada" adiciona material nessa matéria em vez de criar uma nova
 
   async function abrirMateriaDetalhe(materiaId, nome){
@@ -1640,11 +1695,13 @@
     materiaDetalheId = materiaId;
     document.getElementById('detalhe-titulo').textContent = nome;
     document.getElementById('detalhe-resumo').textContent = 'carregando...';
-    document.getElementById('detalhe-mapa').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
-    document.getElementById('detalhe-curiosidades').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+    document.getElementById('painel-mapa').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+    document.getElementById('painel-curiosidades').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
     document.getElementById('detalhe-materiais-lista').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+    document.getElementById('detalhe-resultado-final-wrap').innerHTML = '';
+    mostrarConteudo('resumo');
 
-    const { data: materiaInfo } = await sb.from('be_materias').select('status, data_prova').eq('id', materiaId).single();
+    const { data: materiaInfo } = await sb.from('be_materias').select('status, data_prova, nota_real').eq('id', materiaId).single();
     if(materiaInfo){
       let diasTexto = 'sem data de prova';
       if(materiaInfo.data_prova){
@@ -1652,6 +1709,10 @@
         diasTexto = dias >= 0 ? `faltam ${dias} dia${dias===1?'':'s'} pra prova` : 'data da prova já passou';
       }
       document.getElementById('detalhe-status').textContent = (materiaInfo.status === 'arquivada' ? '📦 arquivada · ' : '') + diasTexto;
+
+      if(materiaInfo.status === 'arquivada'){
+        await montarResultadoFinal(materiaId, materiaInfo.nota_real);
+      }
     }
 
     /* lista de materiais anexados, com opção de excluir cada um */
@@ -1679,18 +1740,18 @@
     const { data: conteudos } = await sb.from('be_conteudo_gerado').select('id, tipo, conteudo').eq('materia_id', materiaId);
     if(!conteudos || conteudos.length === 0){
       document.getElementById('detalhe-resumo').textContent = 'nenhum conteúdo gerado ainda pra essa matéria.';
-      document.getElementById('detalhe-mapa').innerHTML = '';
-      document.getElementById('detalhe-curiosidades').innerHTML = '';
+      document.getElementById('painel-mapa').innerHTML = '';
+      document.getElementById('painel-curiosidades').innerHTML = '';
       document.getElementById('btn-jogar-quiz').style.display = 'none';
+      document.getElementById('btn-jogar-prova').style.display = 'none';
       return;
     }
-    document.getElementById('btn-jogar-quiz').style.display = 'block';
 
     const resumo = conteudos.find(c => c.tipo === 'resumo');
     document.getElementById('detalhe-resumo').textContent = resumo ? resumo.conteudo.texto : 'sem resumo.';
 
     const mapa = conteudos.find(c => c.tipo === 'mapa_mental');
-    const mapaDiv = document.getElementById('detalhe-mapa');
+    const mapaDiv = document.getElementById('painel-mapa');
     if(mapa && mapa.conteudo && mapa.conteudo.ramos){
       mapaDiv.innerHTML = `<p class="hand" style="font-weight:700; margin-bottom:8px;">${mapa.conteudo.tema_central || nome}</p>` +
         mapa.conteudo.ramos.map(r => `
@@ -1703,7 +1764,7 @@
     }
 
     const curi = conteudos.find(c => c.tipo === 'curiosidades');
-    const curiDiv = document.getElementById('detalhe-curiosidades');
+    const curiDiv = document.getElementById('painel-curiosidades');
     if(curi && curi.conteudo && curi.conteudo.lista && curi.conteudo.lista.length){
       curiDiv.innerHTML = curi.conteudo.lista.map(c => `
         <div class="ranking-row"><span style="font-size:16px;">💡</span><span style="font-size:13px;">${c}</span></div>`).join('');
@@ -1718,6 +1779,76 @@
     } else {
       materiaDetalheQuiz = [];
     }
+    document.getElementById('btn-jogar-quiz').style.display = materiaDetalheQuiz.length ? 'inline-block' : 'none';
+
+    const provaConteudo = conteudos.find(c => c.tipo === 'prova');
+    if(provaConteudo){
+      const { data: perguntasProva } = await sb.from('be_quiz_perguntas').select('*').eq('conteudo_gerado_id', provaConteudo.id).order('ordem');
+      materiaDetalheProva = perguntasProva || [];
+    } else {
+      materiaDetalheProva = [];
+    }
+    document.getElementById('btn-jogar-prova').style.display = materiaDetalheProva.length ? 'inline-block' : 'none';
+  }
+
+  function mostrarConteudo(tipo){
+    ['resumo','mapa','curiosidades','quiz','prova'].forEach(t => {
+      document.getElementById('painel-' + t).style.display = (t === tipo) ? 'block' : 'none';
+    });
+    document.querySelectorAll('.content-menu-btn').forEach(b => b.classList.toggle('on', b.dataset.tipo === tipo));
+  }
+
+  async function montarResultadoFinal(materiaId, notaReal){
+    const { data: conteudos } = await sb.from('be_conteudo_gerado').select('id').eq('materia_id', materiaId);
+    const idsConteudo = (conteudos || []).map(c => c.id);
+    if(idsConteudo.length === 0) return;
+
+    const { data: perguntas } = await sb.from('be_quiz_perguntas').select('id').in('conteudo_gerado_id', idsConteudo);
+    const idsPerguntas = (perguntas || []).map(p => p.id);
+    if(idsPerguntas.length === 0) return;
+
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    const { data: tentativas } = await sb.from('be_tentativas').select('acertou').eq('usuario_id', usuarioId).in('quiz_pergunta_id', idsPerguntas);
+
+    const wrap = document.getElementById('detalhe-resultado-final-wrap');
+    if(!tentativas || tentativas.length === 0){
+      wrap.innerHTML = `
+        <div class="resultado-final-card">
+          <h3>📦 Ciclo encerrado</h3>
+          <p class="hand" style="opacity:.9; font-size:13px;">Essa matéria arquivou porque a data da prova passou. Você não chegou a jogar o quiz/prova dela.</p>
+        </div>`;
+      return;
+    }
+    const acertos = tentativas.filter(t => t.acertou).length;
+    const percentual = Math.round((acertos / tentativas.length) * 100);
+
+    let notaHtml = '';
+    if(notaReal !== null && notaReal !== undefined){
+      const notaApp = (percentual / 10).toFixed(1);
+      notaHtml = `<p class="hand" style="margin-top:10px; font-size:13.5px;">Sua nota real: <b>${notaReal}</b> · desempenho no app: <b>${notaApp}</b></p>`;
+    } else {
+      notaHtml = `
+        <div class="nota-real-row">
+          <input type="number" step="0.1" min="0" max="10" id="input-nota-real" placeholder="0-10">
+          <button onclick="salvarNotaReal('${materiaId}')">salvar nota da prova real</button>
+        </div>`;
+    }
+
+    wrap.innerHTML = `
+      <div class="resultado-final-card">
+        <h3>📦 Ciclo encerrado — resultado final</h3>
+        <div class="grande">${percentual}%</div>
+        <p class="hand" style="opacity:.9; font-size:13px; margin:0;">de acerto em ${tentativas.length} pergunta${tentativas.length===1?'':'s'} respondida${tentativas.length===1?'':'s'} (quiz + prova)</p>
+        ${notaHtml}
+      </div>`;
+  }
+
+  async function salvarNotaReal(materiaId){
+    const valor = parseFloat(document.getElementById('input-nota-real').value);
+    if(isNaN(valor) || valor < 0 || valor > 10){ alert('digita uma nota entre 0 e 10'); return; }
+    const { error } = await sb.from('be_materias').update({ nota_real: valor }).eq('id', materiaId);
+    if(error){ alert('Deu ruim: ' + error.message); return; }
+    abrirMateriaDetalhe(materiaId, document.getElementById('detalhe-titulo').textContent);
   }
 
   function adicionarMaterialNaMateria(){
@@ -1749,6 +1880,16 @@
     iniciarQuiz({
       titulo: document.getElementById('detalhe-titulo').textContent,
       quiz: materiaDetalheQuiz,
+      resumo: document.getElementById('detalhe-resumo').textContent,
+      curiosidades: [],
+    });
+  }
+
+  function jogarProvaDaMateria(){
+    if(!materiaDetalheProva || materiaDetalheProva.length === 0){ alert('Essa matéria ainda não tem prova gerada.'); return; }
+    iniciarQuiz({
+      titulo: document.getElementById('detalhe-titulo').textContent + ' (prova)',
+      quiz: materiaDetalheProva,
       resumo: document.getElementById('detalhe-resumo').textContent,
       curiosidades: [],
     });
@@ -1884,6 +2025,8 @@
       const resultado = await resp.json();
       if(!resp.ok) throw new Error(resultado.error || 'erro desconhecido');
 
+      const usuarioIdAtual = localStorage.getItem('be_usuario_id');
+      if(usuarioIdAtual) atualizarEnergiaExibida(usuarioIdAtual);
       iniciarQuiz(resultado);
     }catch(err){
       alert('Deu ruim ao gerar o conteúdo: ' + err.message);
