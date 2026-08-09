@@ -62,8 +62,8 @@
       justify-content:center;
     }
     .phone{
-      width:460px;
-      max-width:460px;
+      width:560px;
+      max-width:560px;
       height:calc(100dvh - 48px);
       border-radius:24px;
       box-shadow:0 40px 90px -30px rgba(32,38,47,.35), 0 0 0 1px rgba(184,168,120,.3);
@@ -93,7 +93,7 @@
 
   .sheet{
     position:relative;
-    padding:54px 22px 100px 42px;
+    padding:54px 22px 130px 42px;
     background-image: repeating-linear-gradient(
       to bottom, transparent 0px, transparent 30px, var(--line) 31px
     );
@@ -533,63 +533,14 @@
           <span class="eyebrow">sequência de estudo</span>
           <span class="num" id="home-streak">0 dias 🔥</span>
         </div>
-        <div class="stamps">
-          <div class="stamp done">✓</div>
-          <div class="stamp done">✓</div>
-          <div class="stamp done">✓</div>
-          <div class="stamp done">✓</div>
-          <div class="stamp done">✓</div>
-          <div class="stamp done">✓</div>
-          <div class="stamp today">?</div>
-        </div>
+        <div class="stamps" id="home-stamps"></div>
       </div>
 
-      <div class="subjects">
-        <div class="tab active">Cálculo II</div>
-        <div class="tab c1">Biologia</div>
-        <div class="tab c2">Química</div>
-        <div class="tab c3">Direito Civil</div>
+      <div class="subjects" id="home-materias">
         <div class="tab add" onclick="go('upload')">+ nova matéria</div>
       </div>
 
-      <div class="section-title"><h2>Continue de onde parou</h2></div>
-      <div class="journey" onclick="go('quiz')">
-        <div class="countdown">faltam 12 dias</div>
-        <div class="subject-name">Cálculo II</div>
-        <h3>Limites e derivadas</h3>
-        <div class="phases">
-          <div class="phase on"></div><div class="phase on"></div><div class="phase on"></div>
-          <div class="phase"></div><div class="phase"></div>
-        </div>
-        <div class="journey-foot">
-          <span class="hand">fase 3 de 5 · simulado libera amanhã</span>
-          <button class="btn-continue">Continuar</button>
-        </div>
-      </div>
-
-      <div class="section-title">
-        <h2>Quiz do dia</h2>
-        <span class="hand">todo mundo tá jogando</span>
-      </div>
-      <div class="quiz-card" onclick="go('ranking')">
-        <div class="quiz-head">
-          <h3>🧪 Química</h3>
-          <span class="timer">expira em 2h 14m</span>
-        </div>
-        <p class="quiz-sub">Vença hoje e ganhe uma semana de conta PRO de graça.</p>
-        <div class="ranking-row">
-          <div class="medal">🥇</div>
-          <div class="avatar">GU</div>
-          <div><div class="r-name">Guilherme</div><div class="r-meta">nível 17</div></div>
-          <div class="r-score">4/5 · 17,8s</div>
-        </div>
-        <div class="ranking-row">
-          <div class="medal">2</div>
-          <div class="avatar">ED</div>
-          <div><div class="r-name">Eduarda</div><div class="r-meta">nível 5</div></div>
-          <div class="r-score">2/5 · 37,1s</div>
-        </div>
-      </div>
+      <div id="home-continuar-wrap"></div>
 
       <div class="upload-cta" onclick="go('upload')">
         <h3>Bateu foto de uma matéria nova?</h3>
@@ -784,19 +735,11 @@
         <div class="scope-pill">Minha turma</div>
       </div>
 
-      <div class="rank-tabs">
-        <div class="tab active">Química</div>
-        <div class="tab c1">Cálculo II</div>
-        <div class="tab c2">Biologia</div>
+      <div class="rank-tabs" id="rank-tabs">
+        <span class="hand" style="color:var(--ink-soft); font-size:12.5px;">carregando suas matérias...</span>
       </div>
 
-      <div class="rank-list">
-        <div class="rank-item"><div class="rank-pos">1º</div><div class="avatar">GU</div><div><div class="r-name">Guilherme</div><div class="r-meta">nível 17 · 4/5 acertos</div></div><div class="r-score">17,8s</div></div>
-        <div class="rank-item"><div class="rank-pos">2º</div><div class="avatar">ED</div><div><div class="r-name">Eduarda</div><div class="r-meta">nível 5 · 2/5 acertos</div></div><div class="r-score">37,1s</div></div>
-        <div class="rank-item me"><div class="rank-pos">3º</div><div class="avatar">D</div><div><div class="r-name">Você</div><div class="r-meta">nível 9 · 2/5 acertos</div></div><div class="r-score">41,4s</div></div>
-        <div class="rank-item"><div class="rank-pos">4º</div><div class="avatar">FS</div><div><div class="r-name">Faby Salazar</div><div class="r-meta">nível 7 · 3/5 acertos</div></div><div class="r-score">130,7s</div></div>
-        <div class="rank-item"><div class="rank-pos">5º</div><div class="avatar">MC</div><div><div class="r-name">Maria Claudia</div><div class="r-meta">nível 1 · 3/5 acertos</div></div><div class="r-score">142,8s</div></div>
-      </div>
+      <div class="rank-list" id="rank-list"></div>
     </div>
   </div>
 
@@ -804,7 +747,7 @@
   <div class="screen" id="screen-grupos">
     <div class="sheet">
       <div class="topbar">
-        <div class="back-btn" onclick="go('ranking')">←</div>
+        <div class="back-btn" onclick="verRanking()">←</div>
         <h2>Grupos de estudo</h2>
       </div>
 
@@ -840,70 +783,27 @@
       <div class="topbar">
         <div class="back-btn" onclick="go('grupos')">←</div>
         <div>
-          <h2>Turma de Cálculo</h2>
-          <span class="hand" style="color:var(--ink-soft); font-size:12px;">7 alunos · código KX9F2A</span>
+          <h2 id="painel-nome-turma">Painel da turma</h2>
+          <span class="hand" style="color:var(--ink-soft); font-size:12px;" id="painel-meta">carregando...</span>
         </div>
       </div>
 
-      <div class="alert-banner">
-        <span style="font-size:20px;">⚠️</span>
-        <span class="hand">3 alunos não estudam há mais de 3 dias. Que tal um lembrete?</span>
-      </div>
+      <div id="painel-alerta-wrap"></div>
 
       <div class="section-title">
         <h2>Material da turma</h2>
         <span class="hand">visível pra todo mundo</span>
       </div>
-      <div class="material-item">
-        <span class="m-ic">📄</span>
-        <div style="flex:1;">
-          <div class="m-name">Lista de exercícios — Limites.pdf</div>
-          <div class="m-meta">importado por você · 2 dias atrás</div>
-        </div>
-      </div>
-      <div class="material-item">
-        <span class="m-ic">📷</span>
-        <div style="flex:1;">
-          <div class="m-name">Caderno — Regras de derivação</div>
-          <div class="m-meta">importado por Eduarda · ontem</div>
-        </div>
+      <div id="painel-materiais">
+        <p class="hand" style="color:var(--ink-soft); font-size:13px;">nenhum material importado ainda</p>
       </div>
       <div class="import-row">
-        <div class="ghost-btn" style="flex:1;" onclick="alert('Abrir seletor de PDF')">+ importar PDF</div>
+        <div class="ghost-btn" style="flex:1;" onclick="go('upload')">+ importar material</div>
       </div>
 
       <div class="section-title"><h2>Engajamento da turma</h2></div>
-      <div class="quiz-card" style="cursor:default;">
-        <div class="engage-row">
-          <div class="status-dot green"></div>
-          <div class="avatar">GU</div>
-          <div class="engage-info"><div class="engage-name">Guilherme</div><div class="engage-status">estudou hoje · nível 17</div></div>
-          <div class="engage-streak">9🔥</div>
-        </div>
-        <div class="engage-row">
-          <div class="status-dot green"></div>
-          <div class="avatar">ED</div>
-          <div class="engage-info"><div class="engage-name">Eduarda</div><div class="engage-status">estudou hoje · nível 5</div></div>
-          <div class="engage-streak">3🔥</div>
-        </div>
-        <div class="engage-row">
-          <div class="status-dot yellow"></div>
-          <div class="avatar">FS</div>
-          <div class="engage-info"><div class="engage-name">Faby Salazar</div><div class="engage-status">estudou há 2 dias</div></div>
-          <div class="engage-streak">0🔥</div>
-        </div>
-        <div class="engage-row">
-          <div class="status-dot red"></div>
-          <div class="avatar">MC</div>
-          <div class="engage-info"><div class="engage-name">Maria Claudia</div><div class="engage-status">sumiu há 6 dias</div></div>
-          <div class="engage-streak">0🔥</div>
-        </div>
-        <div class="engage-row">
-          <div class="status-dot red"></div>
-          <div class="avatar">L</div>
-          <div class="engage-info"><div class="engage-name">Lolverzzz</div><div class="engage-status">nunca abriu a turma</div></div>
-          <div class="engage-streak">0🔥</div>
-        </div>
+      <div class="quiz-card" style="cursor:default;" id="painel-engajamento">
+        <p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>
       </div>
     </div>
   </div>
@@ -913,7 +813,7 @@
   <div class="navbar" id="navbar">
     <button class="nav-item" data-s="home" onclick="go('home')"><div class="nav-icon">🏠</div>Início</button>
     <button class="nav-item" data-s="upload" onclick="go('upload')"><div class="nav-icon">📚</div>Matérias</button>
-    <button class="nav-item" data-s="ranking" onclick="go('ranking')"><div class="nav-icon">🏆</div>Ranking</button>
+    <button class="nav-item" data-s="ranking" onclick="verRanking()"><div class="nav-icon">🏆</div>Ranking</button>
     <button class="nav-item" data-s="perfil" onclick="go('perfil')"><div class="nav-icon">👤</div>Perfil</button>
   </div>
 </div>
@@ -987,6 +887,7 @@
         </div>
         <div class="hand" style="font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;">${count || 1} membro${(count||1) > 1 ? 's' : ''}</div>
         <div class="code-chip">${g.codigo} <span class="copy" onclick="navigator.clipboard.writeText('${g.codigo}'); alert('Código copiado: ${g.codigo}')">copiar código</span></div>
+        ${m.papel_no_grupo === 'admin' ? `<span class="panel-link" onclick="abrirPainel('${g.id}','${g.nome.replace(/'/g,"\\'")}','${g.codigo}')">📊 abrir painel da turma →</span>` : ''}
       `;
       lista.appendChild(card);
     }
@@ -1054,6 +955,113 @@
       btn.textContent = 'Entrar no grupo'; btn.disabled = false;
     }
   }
+
+  /* ============ RANKING (honesto: mostra dados reais, sem inventar gente) ============ */
+  function verRanking(){ go('ranking'); carregarRanking(); }
+  async function carregarRanking(){
+    const usuarioId = localStorage.getItem('be_usuario_id');
+    const tabsDiv = document.getElementById('rank-tabs');
+    const listDiv = document.getElementById('rank-list');
+    if(!usuarioId) return;
+
+    const { data: materias } = await sb.from('be_materias').select('nome').eq('usuario_id', usuarioId);
+    tabsDiv.innerHTML = '';
+    if(materias && materias.length > 0){
+      materias.forEach((m, i) => {
+        const t = document.createElement('div');
+        t.className = 'tab' + (i === 0 ? ' active' : ' c' + ((i % 3) + 1));
+        t.textContent = m.nome;
+        tabsDiv.appendChild(t);
+      });
+    } else {
+      tabsDiv.innerHTML = `<span class="hand" style="color:var(--ink-soft); font-size:12.5px;">crie uma matéria pra ter rankings por assunto</span>`;
+    }
+
+    listDiv.innerHTML = `
+      <div class="quiz-card" style="cursor:default; text-align:center;">
+        <p class="hand" style="color:var(--ink-soft); margin:6px 0;">Ainda não há dados suficientes pra montar um ranking.</p>
+        <p class="hand" style="color:var(--ink-soft); margin:0; font-size:13px;">Assim que você e seus colegas de grupo responderem quizzes, o placar aparece aqui.</p>
+      </div>`;
+  }
+
+  /* ============ PAINEL DA TURMA (professor/admin) ============ */
+  async function abrirPainel(grupoId, nomeGrupo, codigo){
+    go('painel');
+    document.getElementById('painel-nome-turma').textContent = nomeGrupo;
+    document.getElementById('painel-meta').textContent = 'carregando...';
+    document.getElementById('painel-alerta-wrap').innerHTML = '';
+    document.getElementById('painel-materiais').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+    document.getElementById('painel-engajamento').innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">carregando...</p>`;
+
+    const { data: membros } = await sb
+      .from('be_grupo_membros')
+      .select('papel_no_grupo, usuario:be_usuarios(nome, nivel, streak_atual, ultima_atividade)')
+      .eq('grupo_id', grupoId);
+
+    document.getElementById('painel-meta').textContent = `${(membros || []).length} membro${(membros||[]).length===1?'':'s'} · código ${codigo}`;
+
+    const engDiv = document.getElementById('painel-engajamento');
+    if(!membros || membros.length === 0){
+      engDiv.innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">ninguém entrou na turma ainda</p>`;
+    } else {
+      const hoje = new Date().toISOString().slice(0,10);
+      engDiv.innerHTML = membros.map(m => {
+        const u = m.usuario;
+        if(!u) return '';
+        let statusTexto = 'nunca estudou';
+        let dot = 'red';
+        if(u.ultima_atividade === hoje){ statusTexto = 'estudou hoje'; dot = 'green'; }
+        else if(u.ultima_atividade){
+          const dias = Math.round((new Date() - new Date(u.ultima_atividade)) / 86400000);
+          statusTexto = `estudou há ${dias} dia${dias===1?'':'s'}`;
+          dot = dias <= 2 ? 'yellow' : 'red';
+        }
+        const iniciais = u.nome.split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
+        return `
+          <div class="engage-row">
+            <div class="status-dot ${dot}"></div>
+            <div class="avatar">${iniciais}</div>
+            <div class="engage-info"><div class="engage-name">${u.nome}${m.papel_no_grupo==='admin' ? ' 👑' : ''}</div><div class="engage-status">${statusTexto} · nível ${u.nivel}</div></div>
+            <div class="engage-streak">${u.streak_atual}🔥</div>
+          </div>`;
+      }).join('');
+    }
+
+    const inativos = (membros || []).filter(m => m.usuario && m.usuario.ultima_atividade !== hoje_iso()).length;
+    if(inativos > 0){
+      document.getElementById('painel-alerta-wrap').innerHTML = `
+        <div class="alert-banner">
+          <span style="font-size:20px;">⚠️</span>
+          <span class="hand">${inativos} membro${inativos===1?'':'s'} não estudou hoje ainda.</span>
+        </div>`;
+    }
+
+    const { data: materiasGrupo } = await sb.from('be_materias').select('id').eq('grupo_id', grupoId);
+    const matDiv = document.getElementById('painel-materiais');
+    if(!materiasGrupo || materiasGrupo.length === 0){
+      matDiv.innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">nenhum material importado ainda</p>`;
+    } else {
+      const ids = materiasGrupo.map(m => m.id);
+      const { data: materiais } = await sb.from('be_materiais')
+        .select('tipo, texto_extraido, created_at, usuario:be_usuarios(nome)')
+        .in('materia_id', ids)
+        .order('created_at', { ascending: false });
+      if(!materiais || materiais.length === 0){
+        matDiv.innerHTML = `<p class="hand" style="color:var(--ink-soft); font-size:13px;">nenhum material importado ainda</p>`;
+      } else {
+        const icones = { foto: '📷', pdf: '📄', youtube: '▶️', link: '🔗' };
+        matDiv.innerHTML = materiais.map(m => `
+          <div class="material-item">
+            <span class="m-ic">${icones[m.tipo] || '📄'}</span>
+            <div style="flex:1;">
+              <div class="m-name">${m.tipo === 'foto' ? 'Foto de material' : (m.tipo === 'pdf' ? 'PDF' : m.tipo === 'youtube' ? 'Vídeo do YouTube' : 'Link')}</div>
+              <div class="m-meta">importado por ${m.usuario ? m.usuario.nome : '—'} · ${new Date(m.created_at).toLocaleDateString('pt-BR')}</div>
+            </div>
+          </div>`).join('');
+      }
+    }
+  }
+  function hoje_iso(){ return new Date().toISOString().slice(0,10); }
 
   let fonteAtual = 'foto';
   function setSource(type){
@@ -1156,6 +1164,63 @@
     document.getElementById('home-saudacao').textContent = 'Oi, ' + usuario.nome.split(' ')[0] + ' 👋';
     document.getElementById('home-energia').textContent = '⚡ ' + usuario.energia;
     document.getElementById('home-streak').textContent = usuario.streak_atual + ' dias 🔥';
+
+    /* carimbos de sequência: reflete o streak real, sem inventar dias */
+    const stampsDiv = document.getElementById('home-stamps');
+    stampsDiv.innerHTML = '';
+    for(let i = 0; i < 7; i++){
+      const s = document.createElement('div');
+      if(i < usuario.streak_atual) s.className = 'stamp done';
+      else if(i === usuario.streak_atual) s.className = 'stamp today';
+      else s.className = 'stamp';
+      s.textContent = i < usuario.streak_atual ? '✓' : (i === usuario.streak_atual ? '?' : '');
+      stampsDiv.appendChild(s);
+    }
+
+    /* matérias reais do usuário */
+    const { data: materias } = await sb.from('be_materias')
+      .select('id, nome, data_prova, fase_atual, total_fases, created_at')
+      .eq('usuario_id', usuarioId)
+      .order('created_at', { ascending: false });
+
+    const tabsDiv = document.getElementById('home-materias');
+    const addTab = tabsDiv.querySelector('.tab.add');
+    tabsDiv.innerHTML = '';
+    (materias || []).forEach((m, i) => {
+      const t = document.createElement('div');
+      t.className = 'tab' + (i === 0 ? ' active' : ' c' + ((i % 3) + 1));
+      t.textContent = m.nome;
+      tabsDiv.appendChild(t);
+    });
+    tabsDiv.appendChild(addTab);
+
+    const wrap = document.getElementById('home-continuar-wrap');
+    if(materias && materias.length > 0){
+      const m = materias[0];
+      let diasTexto = 'sem data de prova definida';
+      if(m.data_prova){
+        const dias = Math.ceil((new Date(m.data_prova) - new Date()) / 86400000);
+        diasTexto = dias >= 0 ? `faltam ${dias} dia${dias===1?'':'s'}` : 'prova já passou';
+      }
+      wrap.innerHTML = `
+        <div class="section-title"><h2>Continue de onde parou</h2></div>
+        <div class="journey">
+          <div class="countdown">${diasTexto}</div>
+          <div class="subject-name">${m.nome}</div>
+          <h3>Sua última jornada</h3>
+          <div class="journey-foot">
+            <span class="hand">criada ${new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+            <button class="btn-continue" onclick="go('upload')">Nova rodada</button>
+          </div>
+        </div>`;
+    } else {
+      wrap.innerHTML = `
+        <div class="section-title"><h2>Continue de onde parou</h2></div>
+        <div class="quiz-card" style="cursor:default; text-align:center;">
+          <p class="hand" style="color:var(--ink-soft); margin:6px 0;">Você ainda não criou nenhuma matéria de estudo.</p>
+          <p class="hand" style="color:var(--ink-soft); margin:0 0 4px; font-size:13px;">Toca em "+ nova matéria" ou no card abaixo pra começar.</p>
+        </div>`;
+    }
   }
 
   /* ============ NOVA MATÉRIA + IA ============ */
