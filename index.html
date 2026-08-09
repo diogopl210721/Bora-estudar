@@ -33,13 +33,15 @@
     background:var(--paper);
     font-family:'Inter',sans-serif;
     color:var(--ink);
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:flex-start;
-    min-height:100dvh;
     -webkit-font-smoothing:antialiased;
   }
+  .app-shell{
+    display:flex;
+    min-height:100dvh;
+    align-items:flex-start;
+    justify-content:center;
+  }
+  .sidebar{ display:none; }
   .phone{
     width:100%;
     max-width:100%;
@@ -53,13 +55,14 @@
 
   /* qualquer tela maior que um celular normal vira um cartão elegante centralizado, sem imitar celular */
   @media (min-width: 560px){
-    body{
+    .app-shell{
       background:
         radial-gradient(circle at 15% 10%, rgba(44,72,112,.06), transparent 45%),
         radial-gradient(circle at 85% 90%, rgba(232,103,74,.05), transparent 45%),
         var(--paper-deep);
       padding:24px 20px;
       justify-content:center;
+      align-items:center;
     }
     .phone{
       width:560px;
@@ -69,6 +72,61 @@
       box-shadow:0 40px 90px -30px rgba(32,38,47,.35), 0 0 0 1px rgba(184,168,120,.3);
     }
   }
+
+  /* desktop de verdade: barra lateral fixa + painel bem mais largo, cards lado a lado */
+  @media (min-width: 1024px){
+    .app-shell{
+      padding:0; justify-content:flex-start; align-items:stretch;
+      background:var(--paper-deep);
+    }
+    .sidebar{
+      display:flex; flex-direction:column;
+      width:230px; flex-shrink:0;
+      background:var(--ink-blue-deep);
+      padding:28px 20px;
+      position:sticky; top:0; height:100dvh;
+    }
+    .sidebar-logo{ width:150px; margin-bottom:34px; }
+    .sidebar-nav{ display:flex; flex-direction:column; gap:6px; flex:1; }
+    .side-item{
+      display:flex; align-items:center; gap:12px;
+      background:none; border:none; color:rgba(255,255,255,.65);
+      font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14.5px;
+      padding:12px 14px; border-radius:12px; cursor:pointer; text-align:left;
+    }
+    .side-item .nav-icon{ font-size:18px; width:auto; height:auto; }
+    .side-item.active{ background:rgba(255,255,255,.12); color:#fff; }
+    .sidebar-foot{ display:flex; flex-direction:column; gap:16px; }
+    .sidebar-foot .energy-pill{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); color:#fff; box-shadow:none; width:fit-content; }
+    .sidebar-credit{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:rgba(255,255,255,.4); line-height:1.5; }
+
+    .phone{
+      width:auto; max-width:none; flex:1;
+      height:100dvh; border-radius:0; box-shadow:none;
+    }
+    .spiral{ display:none; }
+    .navbar, .persistent-credit{ display:none !important; }
+    .sheet{ padding-left:56px !important; padding-right:56px !important; max-width:960px; margin:0 auto; }
+
+    /* Home vira um painel: cards organizados lado a lado em vez de empilhados */
+    #screen-home .sheet{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      grid-template-areas:
+        "header header"
+        "streak subjects"
+        "continuar continuar"
+        "upload upload";
+      gap:22px 28px;
+      align-items:start;
+    }
+    #screen-home .header{ grid-area:header; margin-bottom:0; }
+    #screen-home .streak-card{ grid-area:streak; margin-bottom:0; }
+    #screen-home .subjects{ grid-area:subjects; flex-wrap:wrap; margin-bottom:0; }
+    #screen-home #home-continuar-wrap{ grid-area:continuar; }
+    #screen-home .upload-cta{ grid-area:upload; }
+  }
+
   .spiral{
     position:absolute;
     left:0; top:0; bottom:0;
@@ -451,6 +509,22 @@
 </head>
 <body>
 
+<div class="app-shell">
+  <div class="sidebar" id="sidebar">
+    <img src="logo.png" alt="Bora Estudar" class="sidebar-logo">
+    <nav class="sidebar-nav">
+      <button class="nav-item side-item" data-s="home" onclick="go('home')"><span class="nav-icon">🏠</span> Início</button>
+      <button class="nav-item side-item" data-s="upload" onclick="go('upload')"><span class="nav-icon">📚</span> Matérias</button>
+      <button class="nav-item side-item" data-s="ranking" onclick="verRanking()"><span class="nav-icon">🏆</span> Ranking</button>
+      <button class="nav-item side-item" data-s="grupos" onclick="verGrupos()"><span class="nav-icon">👥</span> Grupos</button>
+      <button class="nav-item side-item" data-s="perfil" onclick="go('perfil')"><span class="nav-icon">👤</span> Perfil</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="energy-pill" id="sidebar-energia">⚡ 7</div>
+      <div class="sidebar-credit">© 2026 Diogo Soares<br>Bora Estudar</div>
+    </div>
+  </div>
+
 <div class="phone">
   <div class="spiral"></div>
 
@@ -817,6 +891,7 @@
     <button class="nav-item" data-s="perfil" onclick="go('perfil')"><div class="nav-icon">👤</div>Perfil</button>
   </div>
 </div>
+</div>
 
 <script>
   function go(name){
@@ -1163,6 +1238,8 @@
     }
     document.getElementById('home-saudacao').textContent = 'Oi, ' + usuario.nome.split(' ')[0] + ' 👋';
     document.getElementById('home-energia').textContent = '⚡ ' + usuario.energia;
+    const sideEnergia = document.getElementById('sidebar-energia');
+    if(sideEnergia) sideEnergia.textContent = '⚡ ' + usuario.energia;
     document.getElementById('home-streak').textContent = usuario.streak_atual + ' dias 🔥';
 
     /* carimbos de sequência: reflete o streak real, sem inventar dias */
