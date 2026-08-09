@@ -81,23 +81,23 @@
     }
     .sidebar{
       display:flex; flex-direction:column;
-      width:230px; flex-shrink:0;
+      width:clamp(230px, 16vw, 320px); flex-shrink:0;
       background:var(--ink-blue-deep);
-      padding:28px 20px;
+      padding:clamp(28px, 2.4vw, 44px) clamp(20px, 1.6vw, 30px);
       position:sticky; top:0; height:100dvh;
     }
-    .sidebar-logo{ width:150px; margin-bottom:34px; }
-    .sidebar-nav{ display:flex; flex-direction:column; gap:6px; flex:1; }
+    .sidebar-logo{ width:clamp(150px, 11vw, 210px); margin-bottom:clamp(34px, 3vw, 52px); }
+    .sidebar-nav{ display:flex; flex-direction:column; gap:clamp(6px, .6vw, 12px); flex:1; }
     .side-item{
-      display:flex; align-items:center; gap:12px;
+      display:flex; align-items:center; gap:clamp(12px, 1vw, 16px);
       background:none; border:none; color:rgba(255,255,255,.65);
-      font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14.5px;
-      padding:12px 14px; border-radius:12px; cursor:pointer; text-align:left;
+      font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(14.5px, 1.05vw, 18px);
+      padding:clamp(12px, 1vw, 16px) clamp(14px, 1.2vw, 20px); border-radius:12px; cursor:pointer; text-align:left;
     }
-    .side-item .nav-icon{ font-size:18px; width:auto; height:auto; }
+    .side-item .nav-icon{ font-size:clamp(18px, 1.5vw, 26px); width:auto; height:auto; }
     .side-item.active{ background:rgba(255,255,255,.12); color:#fff; }
     .sidebar-foot{ display:flex; flex-direction:column; gap:16px; }
-    .sidebar-foot .energy-pill{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); color:#fff; box-shadow:none; width:fit-content; }
+    .sidebar-foot .energy-pill{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); color:#fff; box-shadow:none; width:fit-content; font-size:clamp(13px, .95vw, 16px); padding:clamp(6px,.5vw,9px) clamp(12px,1vw,16px) clamp(6px,.5vw,9px) clamp(8px,.7vw,12px); }
     .sidebar-credit{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:rgba(255,255,255,.4); line-height:1.5; }
 
     .phone{
@@ -514,7 +514,7 @@
     <img src="logo.png" alt="Bora Estudar" class="sidebar-logo">
     <nav class="sidebar-nav">
       <button class="nav-item side-item" data-s="home" onclick="go('home')"><span class="nav-icon">🏠</span> Início</button>
-      <button class="nav-item side-item" data-s="upload" onclick="go('upload')"><span class="nav-icon">📚</span> Matérias</button>
+      <button class="nav-item side-item" data-s="upload" onclick="novaMateria()"><span class="nav-icon">📚</span> Matérias</button>
       <button class="nav-item side-item" data-s="ranking" onclick="verRanking()"><span class="nav-icon">🏆</span> Ranking</button>
       <button class="nav-item side-item" data-s="grupos" onclick="verGrupos()"><span class="nav-icon">👥</span> Grupos</button>
       <button class="nav-item side-item" data-s="perfil" onclick="go('perfil')"><span class="nav-icon">👤</span> Perfil</button>
@@ -611,12 +611,12 @@
       </div>
 
       <div class="subjects" id="home-materias">
-        <div class="tab add" onclick="go('upload')">+ nova matéria</div>
+        <div class="tab add" onclick="novaMateria()">+ nova matéria</div>
       </div>
 
       <div id="home-continuar-wrap"></div>
 
-      <div class="upload-cta" onclick="go('upload')">
+      <div class="upload-cta" onclick="novaMateria()">
         <h3>Bateu foto de uma matéria nova?</h3>
         <p>Escolha a matéria e deixa que a gente transforma em quiz, resumo e mapa mental.</p>
         <button class="upload-btn">📷 Tirar foto do material</button>
@@ -633,13 +633,8 @@
       </div>
 
       <div class="step-label">passo 1 · qual matéria é essa?</div>
-      <div class="chips" id="chips-materia">
-        <div class="chip sel" onclick="selecionarMateria(this,'Matemática')">Matemática</div>
-        <div class="chip" onclick="selecionarMateria(this,'Biologia')">Biologia</div>
-        <div class="chip" onclick="selecionarMateria(this,'Química')">Química</div>
-        <div class="chip" onclick="selecionarMateria(this,'Português')">Português</div>
-        <div class="chip" onclick="selecionarMateria(this,'História')">História</div>
-        <div class="chip" onclick="selecionarMateria(this,'Direito')">Direito</div>
+      <div class="date-field" style="margin-bottom:28px;">
+        <input type="text" id="input-materia" placeholder="ex: Direito Civil, Anatomia, Inglês..." style="border:none; background:transparent; width:100%; font-family:'Inter'; font-size:14.5px; color:var(--ink);">
       </div>
 
       <div class="step-label">passo 2 · quando é a prova?</div>
@@ -872,7 +867,7 @@
         <p class="hand" style="color:var(--ink-soft); font-size:13px;">nenhum material importado ainda</p>
       </div>
       <div class="import-row">
-        <div class="ghost-btn" style="flex:1;" onclick="go('upload')">+ importar material</div>
+        <div class="ghost-btn" style="flex:1;" onclick="novaMateria()">+ importar material</div>
       </div>
 
       <div class="section-title"><h2>Engajamento da turma</h2></div>
@@ -886,7 +881,7 @@
 
   <div class="navbar" id="navbar">
     <button class="nav-item" data-s="home" onclick="go('home')"><div class="nav-icon">🏠</div>Início</button>
-    <button class="nav-item" data-s="upload" onclick="go('upload')"><div class="nav-icon">📚</div>Matérias</button>
+    <button class="nav-item" data-s="upload" onclick="novaMateria()"><div class="nav-icon">📚</div>Matérias</button>
     <button class="nav-item" data-s="ranking" onclick="verRanking()"><div class="nav-icon">🏆</div>Ranking</button>
     <button class="nav-item" data-s="perfil" onclick="go('perfil')"><div class="nav-icon">👤</div>Perfil</button>
   </div>
@@ -1287,7 +1282,7 @@
           <h3>Sua última jornada</h3>
           <div class="journey-foot">
             <span class="hand">criada ${new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
-            <button class="btn-continue" onclick="go('upload')">Nova rodada</button>
+            <button class="btn-continue" onclick="novaMateria()">Nova rodada</button>
           </div>
         </div>`;
     } else {
@@ -1302,12 +1297,26 @@
 
   /* ============ NOVA MATÉRIA + IA ============ */
   let materiaSelecionada = 'Matemática';
+  let materiaSelecionada = '';
   let fotoBase64 = null;
 
-  function selecionarMateria(el, nome){
-    document.querySelectorAll('#chips-materia .chip').forEach(c => c.classList.remove('sel'));
-    el.classList.add('sel');
-    materiaSelecionada = nome;
+  function novaMateria(){
+    const campoMateria = document.getElementById('input-materia');
+    const campoData = document.getElementById('input-data-prova');
+    const campoYoutube = document.getElementById('input-youtube');
+    const campoLink = document.getElementById('input-link');
+    if(campoMateria) campoMateria.value = '';
+    if(campoData) campoData.value = '';
+    if(campoYoutube) campoYoutube.value = '';
+    if(campoLink) campoLink.value = '';
+    fotoBase64 = null;
+    const placeholder = document.getElementById('foto-placeholder');
+    const preview = document.getElementById('foto-preview');
+    const status = document.getElementById('foto-status');
+    if(placeholder) placeholder.style.display = 'flex';
+    if(preview) preview.style.display = 'none';
+    if(status) status.textContent = 'toque pra tirar a foto';
+    go('upload');
   }
 
   function fotoSelecionada(event){
@@ -1338,6 +1347,8 @@
   }
 
   async function criarJornada(){
+    materiaSelecionada = document.getElementById('input-materia').value.trim();    if(!materiaSelecionada){ alert('Escreve o nome da matéria primeiro.'); return; }
+
     const dataProva = document.getElementById('input-data-prova').value;
     const btn = document.getElementById('btn-criar-jornada');
 
