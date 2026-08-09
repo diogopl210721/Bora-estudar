@@ -94,19 +94,20 @@
       padding:clamp(30px, 2.4vw, 44px) clamp(18px, 1.6vw, 26px);
       position:sticky; top:0; height:100dvh;
       border-right:1px solid rgba(255,255,255,.06);
+      overflow-y:auto;
     }
-    .sidebar-logo{ width:clamp(150px, 11vw, 200px); margin-bottom:clamp(10px, 1.4vw, 18px); filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); }
-    .sidebar-tagline{ font-family:'Kalam',cursive; color:var(--highlighter); font-size:clamp(12.5px, .9vw, 14.5px); margin-bottom:clamp(20px, 2.2vw, 30px); display:block; transform:rotate(-1deg); }
-    .sidebar-nav{ display:flex; flex-direction:column; gap:clamp(7px, .7vw, 11px); flex:1; }
+    .sidebar-logo{ width:clamp(150px, 11vw, 200px); margin-bottom:clamp(10px, 1.4vw, 18px); filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); flex-shrink:0; }
+    .sidebar-tagline{ font-family:'Kalam',cursive; color:var(--highlighter); font-size:clamp(12.5px, .9vw, 14.5px); margin-bottom:clamp(20px, 2.2vw, 30px); display:block; transform:rotate(-1deg); flex-shrink:0; }
+    .sidebar-nav{ display:flex; flex-direction:column; gap:clamp(7px, .7vw, 11px); flex:1 0 auto; }
     .side-item{
       display:flex; align-items:center; gap:clamp(12px, 1vw, 15px);
-      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-left:3px solid transparent;
-      color:rgba(255,255,255,.68);
+      background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-left:3px solid transparent;
+      color:#fff; opacity:.82;
       font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:clamp(14.5px, 1.05vw, 17px);
       padding:clamp(10px, .9vw, 13px) clamp(12px, 1vw, 16px); border-radius:14px; cursor:pointer; text-align:left;
-      transition:transform .15s ease, background .15s ease, border-color .15s ease;
+      transition:transform .15s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
     }
-    .side-item:hover{ background:rgba(255,255,255,.08); color:#fff; transform:translateX(2px); }
+    .side-item:hover{ background:rgba(255,255,255,.1); opacity:1; transform:translateX(2px); }
     .side-icon-badge{
       width:clamp(32px, 2.4vw, 40px); height:clamp(32px, 2.4vw, 40px); border-radius:10px; flex-shrink:0;
       display:flex; align-items:center; justify-content:center; font-size:clamp(16px, 1.3vw, 20px);
@@ -117,9 +118,9 @@
     .side-item[data-s="ranking"] .side-icon-badge{ background:var(--highlighter); }
     .side-item[data-s="grupos"] .side-icon-badge{ background:var(--lilac); }
     .side-item[data-s="perfil"] .side-icon-badge{ background:#6FA8DC; }
-    .side-item.active{ background:rgba(255,255,255,.12); color:#fff; border-left-color:var(--highlighter); box-shadow:2px 3px 0 rgba(0,0,0,.15); }
+    .side-item.active{ background:rgba(255,255,255,.16); color:#fff; opacity:1; border-left-color:var(--highlighter); box-shadow:2px 3px 0 rgba(0,0,0,.15); }
     .side-item.active .side-icon-badge{ transform:scale(1.08) rotate(-4deg); }
-    .sidebar-foot{ display:flex; flex-direction:column; gap:16px; padding-top:16px; border-top:1px dashed rgba(255,255,255,.15); margin-top:12px; }
+    .sidebar-foot{ display:flex; flex-direction:column; gap:16px; padding-top:16px; border-top:1px dashed rgba(255,255,255,.15); margin-top:12px; flex-shrink:0; }
     .sidebar-foot .energy-pill{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.25); color:#fff; box-shadow:none; width:fit-content; font-size:clamp(13px, .95vw, 16px); padding:clamp(6px,.5vw,9px) clamp(12px,1vw,16px) clamp(6px,.5vw,9px) clamp(8px,.7vw,12px); }
     .sidebar-credit{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:rgba(255,255,255,.4); line-height:1.5; }
 
