@@ -568,6 +568,16 @@
       </div>
 
       <div class="onboard-field">
+        <label>e-mail</label>
+        <input type="email" id="input-email-cadastro" placeholder="voce@email.com">
+      </div>
+
+      <div class="onboard-field">
+        <label>senha</label>
+        <input type="password" id="input-senha-cadastro" placeholder="mínimo 6 caracteres">
+      </div>
+
+      <div class="onboard-field">
         <label id="label-escola">nome da escola que você estuda</label>
         <input type="text" id="input-escola" placeholder="ex: Colégio Positivo">
       </div>
@@ -578,6 +588,29 @@
       </div>
 
       <button class="onboard-btn" id="btn-cadastro" onclick="criarConta()">Continuar</button>
+      <span class="onboard-skip" onclick="go('login')">já tenho conta, entrar</span>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div class="screen" id="screen-login">
+    <div class="onboard-wrap">
+      <img src="logo.png" alt="Bora Estudar" class="logo-img small">
+      <h1>Entrar na conta</h1>
+      <span class="hand">que bom te ver de novo</span>
+
+      <div class="onboard-field">
+        <label>e-mail</label>
+        <input type="email" id="input-email-login" placeholder="voce@email.com">
+      </div>
+
+      <div class="onboard-field">
+        <label>senha</label>
+        <input type="password" id="input-senha-login" placeholder="sua senha">
+      </div>
+
+      <button class="onboard-btn" id="btn-login" onclick="entrarComEmailSenha()">Entrar</button>
+      <span class="onboard-skip" onclick="go('cadastro')">ainda não tenho conta, criar</span>
     </div>
   </div>
 
@@ -964,7 +997,7 @@
     document.getElementById('screen-' + name).classList.add('active');
     document.getElementById('screen-' + name).scrollTop = 0;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.s === name));
-    const semNav = (name === 'boasvindas' || name === 'cadastro' || name === 'codigo');
+    const semNav = (name === 'boasvindas' || name === 'cadastro' || name === 'codigo' || name === 'login');
     document.getElementById('navbar').style.display = semNav ? 'none' : 'flex';
     document.getElementById('persistentCredit').classList.toggle('no-nav', semNav);
     document.getElementById('sidebar').classList.toggle('sidebar-hidden', semNav);
@@ -1086,11 +1119,10 @@
     }
   }
 
-  function sair(){
-    const aviso = 'Sair vai desconectar essa conta desse aparelho. Como ainda não tem login por e-mail nessa versão, não dá pra entrar de volta nessa mesma conta depois — só criar uma conta nova. Quer sair mesmo assim?';
-    if(!confirm(aviso)) return;
+  async function sair(){
+    if(!confirm('Sair da conta?')) return;
+    await sb.auth.signOut();
     localStorage.removeItem('be_usuario_id');
-    localStorage.removeItem('be_device_id');
     location.reload();
   }
 
@@ -1337,20 +1369,7 @@
   const SUPABASE_URL = 'https://arffptuclrrzuzdrcmuc.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyZmZwdHVjbHJyenV6ZHJjbXVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3MTcxMDAsImV4cCI6MjEwMTI5MzEwMH0.n3AqYrMwv2ayVa4la6vesVJOfd_LkdmY-ikp8P8uFAg';
 
-  /* identidade do aparelho: substitui login/senha nesta primeira versão */
-  function getDeviceId(){
-    let id = localStorage.getItem('be_device_id');
-    if(!id){
-      id = crypto.randomUUID();
-      localStorage.setItem('be_device_id', id);
-    }
-    return id;
-  }
-  const DEVICE_ID = getDeviceId();
-
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    global: { headers: { 'x-usuario-id': DEVICE_ID } }
-  });
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let papelSelecionado = 'aluno';
 
@@ -1361,27 +1380,70 @@
     return out;
   }
 
-  async function criarConta(){
-    const nome = document.getElementById('input-nome').value.trim();
+  async function criarPerfilSeNaoExistir(authUserId){
+    const { data: existente } = await sb.from('be_usuarios').select('id').eq('auth_user_id', authUserId).maybeSingle();
+    if(existente){ localStorage.setItem('be_usuario_id', existente.id); return existente.id; }
+
+    const nome = document.getElementById('input-nome').value.trim() || 'Aluno(a)';
     const escola = document.getElementById('input-escola').value.trim();
     const cidade = document.getElementById('input-cidade').value.trim();
+    const { data: novo, error } = await sb.from('be_usuarios')
+      .insert({ auth_user_id: authUserId, nome, papel: papelSelecionado, escola, cidade })
+      .select().single();
+    if(error) throw error;
+    localStorage.setItem('be_usuario_id', novo.id);
+    return novo.id;
+  }
+
+  async function criarConta(){
+    const nome = document.getElementById('input-nome').value.trim();
+    const email = document.getElementById('input-email-cadastro').value.trim();
+    const senha = document.getElementById('input-senha-cadastro').value;
     if(!nome){ alert('digite seu nome pra continuar'); return; }
+    if(!email){ alert('digite seu e-mail'); return; }
+    if(!senha || senha.length < 6){ alert('a senha precisa ter pelo menos 6 caracteres'); return; }
 
     const btn = document.getElementById('btn-cadastro');
     btn.textContent = 'Criando...'; btn.style.opacity = '.7';
 
     try{
-      const { data: usuario, error: insErr } = await sb.from('be_usuarios')
-        .insert({ device_id: DEVICE_ID, nome, papel: papelSelecionado, escola, cidade })
-        .select().single();
-      if(insErr) throw insErr;
+      const { data, error } = await sb.auth.signUp({ email, password: senha });
+      if(error) throw error;
 
-      localStorage.setItem('be_usuario_id', usuario.id);
+      if(!data.session){
+        alert('Quase lá! Enviamos um link de confirmação pro seu e-mail. Depois de confirmar, volte aqui e faça login.');
+        go('login');
+        return;
+      }
+
+      await criarPerfilSeNaoExistir(data.user.id);
       go('codigo');
     }catch(err){
       alert('Deu ruim ao criar sua conta: ' + err.message);
     }finally{
       btn.textContent = 'Continuar'; btn.style.opacity = '1';
+    }
+  }
+
+  async function entrarComEmailSenha(){
+    const email = document.getElementById('input-email-login').value.trim();
+    const senha = document.getElementById('input-senha-login').value;
+    if(!email || !senha){ alert('preenche e-mail e senha'); return; }
+
+    const btn = document.getElementById('btn-login');
+    btn.textContent = 'Entrando...'; btn.style.opacity = '.7';
+
+    try{
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
+      if(error) throw error;
+
+      await criarPerfilSeNaoExistir(data.user.id);
+      go('home');
+      carregarHome();
+    }catch(err){
+      alert('Não consegui entrar: ' + (err.message === 'Invalid login credentials' ? 'e-mail ou senha errados' : err.message));
+    }finally{
+      btn.textContent = 'Entrar'; btn.style.opacity = '1';
     }
   }
 
@@ -1695,13 +1757,16 @@
         .select().single();
       if(materiaErr) throw materiaErr;
 
+      const { data: sessaoData } = await sb.auth.getSession();
+      const accessToken = sessaoData && sessaoData.session ? sessaoData.session.access_token : null;
+      if(!accessToken){ alert('Sua sessão expirou, entra de novo.'); go('login'); return; }
+
       const resp = await fetch(`${SUPABASE_URL}/functions/v1/gerar-conteudo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Authorization': 'Bearer ' + accessToken,
           'apikey': SUPABASE_KEY,
-          'x-usuario-id': DEVICE_ID,
         },
         body: JSON.stringify({
           materia_id: materia.id,
@@ -1816,13 +1881,15 @@
     go('resultado');
   }
 
-  /* ao carregar a página: se já tem conta salva no aparelho, pula direto pra home */
+  /* ao carregar a página: confere se já tem uma sessão de login válida */
   (async function boot(){
-    const usuarioId = localStorage.getItem('be_usuario_id');
-    if(usuarioId){
+    const { data } = await sb.auth.getSession();
+    if(data && data.session && data.session.user){
+      await criarPerfilSeNaoExistir(data.session.user.id);
       go('home');
       carregarHome();
     } else {
+      localStorage.removeItem('be_usuario_id');
       go('cadastro');
     }
   })();
