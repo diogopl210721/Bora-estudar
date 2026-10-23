@@ -147,6 +147,18 @@ if (ana && prof) {
     confere(!c7.error && c7.data === null && !c8.error && c8.data !== null, 'só a própria pessoa e o criador sabem de um silêncio');
     const c9 = await chamarRpc(dono.auth_user_id, 'be_painel_criador', {});
     confere(!c9.error && c9.data.numeros.contas >= 4 && c9.data.silenciados.length === 1, 'o criador abre o painel');
+    const trocar = async (sub, corpo) => {
+      const r = await fetch('http://localhost:8787/functions/v1/estude-criador-senha', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sub }, body: JSON.stringify(corpo) });
+      return r.status;
+    };
+    confere(await trocar(ana2.auth_user_id, { usuario_id: carlos.id, senha: 'hackeado1' }) === 403, 'aluna não troca a senha de ninguém');
+    confere(await trocar(dono.auth_user_id, { usuario_id: dono.id, senha: 'outra123' }) === 403, 'a senha da conta do criador não muda pelo painel');
+    confere(await trocar(dono.auth_user_id, { usuario_id: carlos.id, senha: '123' }) === 400, 'senha provisória curta é recusada');
+    const b1 = await chamarRpc(ana2.auth_user_id, 'be_buscar_contas', { p_busca: 'teste' });
+    confere(!!b1.error, 'aluna não busca contas nem vê e-mails');
+    const b2 = await chamarRpc(dono.auth_user_id, 'be_buscar_contas', { p_busca: '%%' });
+    const b3 = await chamarRpc(dono.auth_user_id, 'be_buscar_contas', { p_busca: 'prof@' });
+    confere(!b2.error && b2.data.length === 0 && !b3.error && b3.data.length === 1, 'busca de contas do criador (com % tratado como letra)');
     const c10 = await chamarRpc(carlos.auth_user_id, 'be_enviar_mensagem', { p_sala: (await poolAdmin.query('select id from be_salas where oficial limit 1')).rows[0].id, p_texto: 'oi' });
     confere(!!c10.error && /sem mandar/.test(c10.error.message), 'quem está silenciado não manda mensagem');
   } else { console.log('FALHA sem a conta do criador do e2e'); falhas++; }

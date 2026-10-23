@@ -51,7 +51,7 @@
           },
           async signOut() { gravar(null); return { error: null }; },
           onAuthStateChange(cb) { ouvintes.push(cb); return { data: { subscription: { unsubscribe() {} } } }; },
-          async updateUser() { return { data: {}, error: null }; },
+          async updateUser({ password } = {}) { const r = await post('/__auth/senha', { password }); return { data: {}, error: r.error || null }; },
           async resetPasswordForEmail() { return { error: null }; },
         },
       };

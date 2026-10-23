@@ -10,6 +10,7 @@ import { LIMITE_TUTOR_DIA, XP_TUTOR, XP_TUTOR_MAX_DIA, limparResposta, montarMen
 import { LIMITE_PUBLICACOES_DIA, XP_PUBLICAR, dataHora, lerModeracao, textoParaModerar, validarPublicacao } from '../supabase/functions/estude-publicar-resumo/nucleo.ts';
 import { lerConferencia, validarConferencia } from '../supabase/functions/estude-conferir-resposta/nucleo.ts';
 import { LIMITE_CADASTROS_HORA_IP, hashIp, validarCadastro } from '../supabase/functions/estude-cadastro/nucleo.ts';
+import { validarTroca } from '../supabase/functions/estude-criador-senha/nucleo.ts';
 
 const SITE = path.resolve(import.meta.dirname, '../site');
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
@@ -227,6 +228,24 @@ async function conferirResposta(req, res) {
   json(res, { ok: true, ...r });
 }
 
+// conta do criador troca a senha de outra conta: mesma regra da Edge Function estude-criador-senha
+async function criadorSenha(req, res) {
+  const sub = tokenDe(req);
+  const uid = sub && await usuarioDe(sub);
+  if (!uid) return json(res, { error: 'não autenticado' }, 401);
+  let pedido;
+  try { pedido = validarTroca(await lerCorpo(req)); } catch (e) { return json(res, { error: e.message }, 400); }
+  const admin = clienteAdmin();
+  if (!(await ehCriador(admin, uid))) return json(res, { error: 'só a conta do criador pode trocar a senha de outra pessoa' }, 403);
+  const { rows } = await pool.query('select u.id, a.email from public.be_usuarios u join auth.users a on a.id = u.auth_user_id where u.id = $1', [pedido.usuarioId]);
+  if (!rows.length) return json(res, { error: 'conta não encontrada' }, 404);
+  if (await ehCriador(admin, rows[0].id)) return json(res, { error: 'a senha da conta do criador só muda em Perfil → trocar senha' }, 403);
+  const conta = senhas.get(String(rows[0].email).toLowerCase());
+  if (!conta) return json(res, { error: 'conta não encontrada' }, 404);
+  conta.password = pedido.senha;
+  json(res, { ok: true });
+}
+
 // cadastro sem e-mail de confirmação: mesma validação e limite da Edge Function
 async function cadastro(req, res) {
   let dados;
@@ -261,6 +280,13 @@ http.createServer(async (req, res) => {
       if (!u || u.password !== password) return json(res, { error: { message: 'Invalid login credentials' } });
       return json(res, { session: { access_token: u.id, user: { id: u.id, email, user_metadata: {} } } });
     }
+    if (req.method === 'POST' && url.pathname === '/__auth/senha') {
+      const { password } = await lerCorpo(req);
+      const conta = [...senhas.values()].find((c) => c.id === tokenDe(req));
+      if (!conta) return json(res, { error: { message: 'Auth session missing!' } });
+      conta.password = password;
+      return json(res, { data: {} });
+    }
     if (req.method === 'POST' && url.pathname === '/__db') return json(res, await executar(tokenDe(req), await lerCorpo(req)));
     if (req.method === 'POST' && url.pathname.startsWith('/__rpc/')) return json(res, await chamarRpc(tokenDe(req), url.pathname.slice(7), await lerCorpo(req)));
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-gerar-conteudo') return await gerarConteudo(req, res);
@@ -269,6 +295,7 @@ http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-cadastro') return await cadastro(req, res);
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-publicar-resumo') return await publicarResumo(req, res);
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-conferir-resposta') return await conferirResposta(req, res);
+    if (req.method === 'POST' && url.pathname === '/functions/v1/estude-criador-senha') return await criadorSenha(req, res);
     if (url.pathname === '/mock-supabase.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript' });
       return res.end(fs.readFileSync(path.join(import.meta.dirname, 'mock-supabase.js')));
