@@ -71,6 +71,8 @@ async function gerarConteudo(req, res) {
   const admin = clienteAdmin();
   const { data: acesso } = await admin.rpc('be_materia_acessivel_para', { p_usuario: uid, p_materia: corpo.materia_id });
   if (!acesso) return json(res, { error: 'matéria não encontrada' }, 404);
+  const { data: podeEditar } = await admin.rpc('be_pode_editar_materia_para', { p_usuario: uid, p_materia: corpo.materia_id });
+  if (!podeEditar) return json(res, { error: 'Nessa turma só o professor adiciona material.' }, 403);
   const hoje = new Date().toISOString().slice(0, 10);
   const { data: uso } = await admin.from('be_uso_ia').select('quantidade').eq('usuario_id', uid).eq('data', hoje).maybeSingle();
   const usado = uso ? uso.quantidade : 0;

@@ -21,6 +21,7 @@ Por cima disso, o que um app de estudo social tem: **biblioteca de resumos** fei
 | Correção de redação nas 5 competências | Edge Function `estude-corrigir-redacao` |
 | Gerar material a partir do upload (tópicos, cards, quiz, prova, plano) | Edge Function `estude-gerar-conteudo` |
 | Painel da turma (onde a turma está fraca, quem sumiu) | `be_painel_turma` |
+| Turma do professor × grupo de amigos: na turma só o professor põe material (matéria, material, flashcard, data da prova); no grupo de amigos qualquer membro põe | `be_pode_editar_grupo` nas regras de acesso + checagem na `estude-gerar-conteudo` |
 | Biblioteca: feed (em alta, novos, seguindo, salvos, meus), busca em português, perfil público | `be_feed_resumos`, `be_resumo_abrir`, `be_perfil_publico` |
 | Publicar resumo (filtro de contato + moderação por IA antes de aparecer; 25 XP, +2 XP por curtida) | Edge Function `estude-publicar-resumo`, gatilho `be_curtida_xp` |
 | Tutor de IA com foto, uma conversa por dúvida (60 perguntas/dia, 3 XP até 5 vezes por dia) | Edge Function `estude-tutor` |
@@ -48,7 +49,7 @@ Efeitos em `site/efeitos.js` (confete, XP voando, subir de nível, carimbo de di
 
 ## Como subir (ordem)
 
-1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`, `supabase/04_estude_social.sql`, `supabase/05_estude_social_funcoes.sql`, `supabase/06_estude_cadastro.sql`, `supabase/07_estude_plano_substituidas.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
+1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`, `supabase/04_estude_social.sql`, `supabase/05_estude_social_funcoes.sql`, `supabase/06_estude_cadastro.sql`, `supabase/07_estude_plano_substituidas.sql`, `supabase/08_estude_grupos_permissoes.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
    O texto colado fica em `be_materiais` como `tipo = 'link'` sem `url_externa` (a tabela original não aceita `texto`).
 2. **Funções** — publicar `supabase/functions/estude-gerar-conteudo`, `estude-corrigir-redacao`, `estude-tutor`, `estude-publicar-resumo`, `estude-conferir-resposta` (todas com verificação de JWT), `estude-cadastro` (sem verificação de JWT: é ela que cria a conta) e `estude-importar-enem` (sem verificação de JWT; ela exige a chave descartável).
    Opcional: secrets `ESTUDE_MODELO` (padrão `claude-sonnet-5-5`, usado no material e no tutor) e `ESTUDE_MODELO_RAPIDO` (padrão `claude-haiku-5-5`, usado na moderação e na conferência por voz).

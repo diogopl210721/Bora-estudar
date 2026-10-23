@@ -72,6 +72,33 @@ if (ana && prof) {
     const vazou = (await poolAdmin.query('select id from be_plano_tarefas where usuario_id = $1 and substituida', [ana.id])).rows.some((r) => ids.has(r.id));
     confere(!vazou, 'o Hoje não mostra tarefa substituída');
   }
+  // grupos: na turma do professor só ele põe material; no grupo de amigos, qualquer membro
+  const turma = (await poolAdmin.query("select g.id, (select id from be_materias where grupo_id = g.id limit 1) as materia from be_grupos g where g.tipo = 'turma_professor' limit 1")).rows[0];
+  if (turma && turma.materia) {
+    const m1 = await executar(ana.auth_user_id, { table: 'be_materias', op: 'insert', values: { grupo_id: turma.id, nome: 'matéria pirata' }, filters: [], order: [] });
+    confere(!!m1.error, 'aluna não cria matéria na turma do professor');
+    const m2 = await executar(ana.auth_user_id, { table: 'be_materiais', op: 'insert', values: { materia_id: turma.materia, tipo: 'link', importado_por: ana.id, texto_extraido: 'x' }, filters: [], order: [] });
+    confere(!!m2.error, 'aluna não põe material na matéria da turma');
+    const m3 = await executar(ana.auth_user_id, { table: 'be_cards', op: 'insert', values: { materia_id: turma.materia, frente: 'pirata?', verso: 'sim', origem: 'manual', criado_por: ana.id }, filters: [], order: [] });
+    confere(!!m3.error, 'aluna não cria flashcard na matéria da turma');
+    const antes = (await poolAdmin.query('select data_prova from be_materias where id = $1', [turma.materia])).rows[0].data_prova;
+    await executar(ana.auth_user_id, { table: 'be_materias', op: 'update', values: { data_prova: '2099-01-01' }, filters: [{ op: 'eq', col: 'id', val: turma.materia }], order: [] });
+    const depois = (await poolAdmin.query('select data_prova from be_materias where id = $1', [turma.materia])).rows[0].data_prova;
+    confere(String(antes) === String(depois), 'aluna não muda a data da prova da turma');
+    await executar(ana.auth_user_id, { table: 'be_materias', op: 'delete', filters: [{ op: 'eq', col: 'id', val: turma.materia }], order: [] });
+    confere((await poolAdmin.query('select 1 from be_materias where id = $1', [turma.materia])).rowCount === 1, 'aluna não tira matéria da turma');
+    const fn1 = await chamarRpc(null, 'be_pode_editar_materia_para', { p_usuario: ana.id, p_materia: turma.materia });
+    const fn2 = await chamarRpc(null, 'be_pode_editar_materia_para', { p_usuario: prof.id, p_materia: turma.materia });
+    confere(fn1.data === false && fn2.data === true, 'gerar conteúdo com IA na turma: aluna não, professor sim');
+  } else { console.log('FALHA sem turma do e2e'); falhas++; }
+  const amigos = (await poolAdmin.query("select id from be_grupos where tipo = 'grupo_amigos' limit 1")).rows[0];
+  const bia = (await poolAdmin.query("select id, auth_user_id from be_usuarios where nome like 'Bia%'")).rows[0];
+  if (amigos && bia) {
+    const gen = (await poolAdmin.query("select count(*)::int n from be_materias where grupo_id = $1 and nome = 'Genética'", [amigos.id])).rows[0].n;
+    confere(gen === 1, 'no grupo de amigos, quem não criou o grupo também coloca matéria');
+    const anaVe = await executar(ana.auth_user_id, { table: 'be_materias', op: 'select', columns: 'id', filters: [{ op: 'eq', col: 'grupo_id', val: amigos.id }], order: [] });
+    confere(!anaVe.error && anaVe.data.length === 1, 'a matéria do grupo de amigos aparece pra quem criou o grupo');
+  } else { console.log('FALHA sem grupo de amigos do e2e'); falhas++; }
   // terceira pessoa, fora da turma: não vê a sala nem as mensagens da turma
   const fora = (await poolAdmin.query("insert into auth.users (id, email) values (gen_random_uuid(), 'fora@teste.com') returning id")).rows[0].id;
   await poolAdmin.query("insert into be_usuarios (auth_user_id, nome, papel) values ($1, 'Pessoa de Fora', 'aluno')", [fora]);

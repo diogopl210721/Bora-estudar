@@ -705,6 +705,7 @@ begin
   return coalesce((
     select json_agg(json_build_object('id', g.id, 'nome', g.nome, 'materia', g.materia, 'tipo', g.tipo,
              'codigo', g.codigo, 'papel', gm.papel_no_grupo,
+             'pode_editar', g.dono_id = v_u or gm.papel_no_grupo = 'admin' or g.tipo = 'grupo_amigos',
              'membros', (select count(*) from be_grupo_membros o where o.grupo_id = g.id))
            order by gm.joined_at desc)
     from be_grupo_membros gm join be_grupos g on g.id = gm.grupo_id
@@ -724,6 +725,8 @@ begin
   select json_build_object(
     'materia', json_build_object('id', v_m.id, 'nome', v_m.nome, 'data_prova', v_m.data_prova, 'status', v_m.status,
                                  'nota_real', v_m.nota_real, 'grupo_id', v_m.grupo_id, 'dono', v_m.usuario_id = v_u,
+                                 'pode_editar', v_m.usuario_id = v_u or (v_m.grupo_id is not null and be_pode_editar_grupo(v_m.grupo_id)),
+                                 'grupo_tipo', (select tipo from be_grupos where id = v_m.grupo_id),
                                  'dias', v_m.data_prova - v_hoje,
                                  'grupo_nome', (select nome from be_grupos where id = v_m.grupo_id)),
     'materiais', coalesce((select json_agg(json_build_object('id', mt.id, 'tipo', mt.tipo, 'created_at', mt.created_at, 'tem_url', mt.url_externa is not null,
