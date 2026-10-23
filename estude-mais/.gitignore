@@ -1,0 +1,6 @@
+node_modules/
+teste/shots/
+teste/server.log
+teste/server.pid
+supabase/enem/
+__pycache__/
