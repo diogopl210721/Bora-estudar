@@ -7,7 +7,7 @@ import { poolAdmin as pool, executar, chamarRpc, clienteAdmin } from './executor
 import { extrairJson, normalizarGerado, persistirConteudo } from '../supabase/functions/estude-gerar-conteudo/nucleo.ts';
 import { normalizarCorrecao } from '../supabase/functions/estude-corrigir-redacao/nucleo.ts';
 import { LIMITE_TUTOR_DIA, XP_TUTOR, XP_TUTOR_MAX_DIA, limparResposta, montarMensagens, tituloDaConversa, validarPedido } from '../supabase/functions/estude-tutor/nucleo.ts';
-import { LIMITE_PUBLICACOES_DIA, XP_PUBLICAR, lerModeracao, textoParaModerar, validarPublicacao } from '../supabase/functions/estude-publicar-resumo/nucleo.ts';
+import { LIMITE_PUBLICACOES_DIA, XP_PUBLICAR, dataHora, lerModeracao, textoParaModerar, validarPublicacao } from '../supabase/functions/estude-publicar-resumo/nucleo.ts';
 import { lerConferencia, validarConferencia } from '../supabase/functions/estude-conferir-resposta/nucleo.ts';
 import { LIMITE_CADASTROS_HORA_IP, hashIp, validarCadastro } from '../supabase/functions/estude-cadastro/nucleo.ts';
 
@@ -63,6 +63,12 @@ async function usuarioDe(sub) {
   return r.rows[0] ? r.rows[0].id : null;
 }
 
+// mesma checagem das Edge Functions: a conta do criador não tem limite diário
+async function ehCriador(admin, uid) {
+  const { data } = await admin.rpc('be_eh_criador', { p_usuario: uid });
+  return data === true;
+}
+
 async function gerarConteudo(req, res) {
   const sub = tokenDe(req);
   const corpo = await lerCorpo(req);
@@ -73,10 +79,11 @@ async function gerarConteudo(req, res) {
   if (!acesso) return json(res, { error: 'matéria não encontrada' }, 404);
   const { data: podeEditar } = await admin.rpc('be_pode_editar_materia_para', { p_usuario: uid, p_materia: corpo.materia_id });
   if (!podeEditar) return json(res, { error: 'Nessa turma só o professor adiciona material.' }, 403);
+  const criador = await ehCriador(admin, uid);
   const hoje = new Date().toISOString().slice(0, 10);
   const { data: uso } = await admin.from('be_uso_ia').select('quantidade').eq('usuario_id', uid).eq('data', hoje).maybeSingle();
   const usado = uso ? uso.quantidade : 0;
-  if (usado >= 7) return json(res, { error: 'Sua energia de hoje acabou (7 gerações por dia). Ela recarrega amanhã!' }, 429);
+  if (!criador && usado >= 7) return json(res, { error: 'Sua energia de hoje acabou (7 gerações por dia). Ela recarrega amanhã!' }, 429);
   await new Promise((ok) => setTimeout(ok, 4600)); // a IA de verdade leva uns 30 s; aqui só o bastante pra ver as etapas da geração
   const gerado = normalizarGerado(extrairJson(IA_CONTEUDO));
   const salvo = await persistirConteudo(admin, { usuarioId: uid, materiaId: corpo.materia_id, tipoFonte: corpo.tipo_fonte, url: null, gerado });
@@ -89,7 +96,7 @@ async function gerarConteudo(req, res) {
     if (r.error) return json(res, { error: r.error.message }, 500);
     plano = r.data;
   }
-  json(res, { ok: true, ...salvo, plano_tarefas: plano, energia_restante: 7 - (usado + 1) });
+  json(res, { ok: true, ...salvo, plano_tarefas: plano, energia_restante: criador ? null : 7 - (usado + 1) });
 }
 
 async function corrigirRedacao(req, res) {
@@ -100,6 +107,11 @@ async function corrigirRedacao(req, res) {
   if ((corpo.texto || '').length < 400) return json(res, { error: 'curta demais' }, 400);
   const c = normalizarCorrecao(IA_REDACAO);
   const admin = clienteAdmin();
+  const criador = await ehCriador(admin, uid);
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data: uso } = await admin.from('be_uso_ia').select('quantidade').eq('usuario_id', uid).eq('data', hoje).maybeSingle();
+  const usado = uso ? uso.quantidade : 0;
+  if (!criador && usado >= 7) return json(res, { error: 'Sua energia de hoje acabou (7 usos de IA por dia). Ela recarrega amanhã!' }, 429);
   const { data, error } = await admin.from('be_redacoes').insert({
     usuario_id: uid, tema: corpo.tema, texto: corpo.texto, notas: c.notas, total: c.total,
     feedback: { comentarios: c.comentarios, pontos_fortes: c.pontos_fortes, melhorias: c.melhorias, paragrafo_reescrito: c.paragrafo_reescrito },
@@ -107,7 +119,7 @@ async function corrigirRedacao(req, res) {
   if (error) return json(res, { error: error.message }, 500);
   await admin.rpc('be_incrementar_uso_ia', { p_usuario_id: uid });
   await admin.rpc('be_ganhar_xp', { p_usuario: uid, p_tipo: 'redacao', p_pontos: 30, p_ref: data.id });
-  json(res, { ok: true, id: data.id, ...c, xp: 30, energia_restante: 5 });
+  json(res, { ok: true, id: data.id, ...c, xp: 30, energia_restante: criador ? null : 7 - (usado + 1) });
 }
 
 // ---------- tutor, publicação e conferência por voz (mesma lógica das Edge Functions, IA simulada) ----------
@@ -126,10 +138,11 @@ async function tutor(req, res) {
   let pedido;
   try { pedido = validarPedido(await lerCorpo(req)); } catch (e) { return json(res, { error: e.message }, 400); }
   const admin = clienteAdmin();
+  const criador = await ehCriador(admin, uid);
   const hoje = new Date().toISOString().slice(0, 10);
   const { data: uso } = await admin.from('be_uso_tutor').select('quantidade').eq('usuario_id', uid).eq('data', hoje).maybeSingle();
   const usado = uso ? uso.quantidade : 0;
-  if (usado >= LIMITE_TUTOR_DIA) return json(res, { error: `Você já fez ${LIMITE_TUTOR_DIA} perguntas hoje. O tutor volta amanhã!` }, 429);
+  if (!criador && usado >= LIMITE_TUTOR_DIA) return json(res, { error: `Você já fez ${LIMITE_TUTOR_DIA} perguntas hoje. O tutor volta amanhã!` }, 429);
   let conversaId = pedido.conversaId;
   let historico = [];
   if (conversaId) {
@@ -156,7 +169,7 @@ async function tutor(req, res) {
   if (inicioDia.getTime() > Date.now()) inicioDia.setUTCDate(inicioDia.getUTCDate() - 1);
   const { count: xpHoje } = await admin.from('be_xp_eventos').select('id', { count: 'exact', head: true }).eq('usuario_id', uid).eq('tipo', 'tutor').gte('created_at', inicioDia.toISOString());
   if ((xpHoje ?? 0) < XP_TUTOR_MAX_DIA) { await admin.rpc('be_ganhar_xp', { p_usuario: uid, p_tipo: 'tutor', p_pontos: XP_TUTOR, p_ref: conversaId }); xp = XP_TUTOR; }
-  json(res, { ok: true, conversa_id: conversaId, resposta: texto, xp, restantes: LIMITE_TUTOR_DIA - (usado + 1) });
+  json(res, { ok: true, conversa_id: conversaId, resposta: texto, xp, restantes: criador ? null : LIMITE_TUTOR_DIA - (usado + 1) });
 }
 
 async function publicarResumo(req, res) {
@@ -166,9 +179,12 @@ async function publicarResumo(req, res) {
   let pub;
   try { pub = validarPublicacao(await lerCorpo(req)); } catch (e) { return json(res, { error: e.message }, 400); }
   const admin = clienteAdmin();
+  const criador = await ehCriador(admin, uid);
+  const { data: silencio } = await admin.from('be_silenciados').select('ate').eq('usuario_id', uid).gt('ate', new Date().toISOString()).maybeSingle();
+  if (silencio) return json(res, { error: `Você está sem publicar até ${dataHora(silencio.ate)} por causa das regras da comunidade.` }, 403);
   const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count: hoje } = await admin.from('be_resumos').select('id', { count: 'exact', head: true }).eq('autor_id', uid).gte('created_at', desde);
-  if ((hoje ?? 0) >= LIMITE_PUBLICACOES_DIA) return json(res, { error: `Você já publicou ${LIMITE_PUBLICACOES_DIA} resumos nas últimas 24 horas. Amanhã tem mais!` }, 429);
+  if (!criador && (hoje ?? 0) >= LIMITE_PUBLICACOES_DIA) return json(res, { error: `Você já publicou ${LIMITE_PUBLICACOES_DIA} resumos nas últimas 24 horas. Amanhã tem mais!` }, 429);
   if (pub.materiaId) {
     const { data: acesso } = await admin.rpc('be_materia_acessivel_para', { p_usuario: uid, p_materia: pub.materiaId });
     if (!acesso) pub.materiaId = null;
@@ -176,7 +192,7 @@ async function publicarResumo(req, res) {
   await new Promise((ok) => setTimeout(ok, 500));
   // moderação simulada: recusa quando o texto tem contato pessoal ou a palavra-teste PROIBIDO
   const texto = textoParaModerar(pub);
-  const recusa = /PROIBIDO|whats|instagram/i.test(texto);
+  const recusa = !criador && /PROIBIDO|whats|instagram/i.test(texto);
   const mod = lerModeracao(JSON.stringify(recusa ? { aprovado: false, motivo: 'O resumo tem conteúdo que não combina com a biblioteca (contato pessoal ou ofensa).' } : { aprovado: true, motivo: '' }));
   const { data: r, error } = await admin.from('be_resumos').insert({
     autor_id: uid, titulo: pub.titulo, materia: pub.materia, serie: pub.serie, conteudo: pub.conteudo,

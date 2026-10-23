@@ -50,6 +50,7 @@ function onde(filtros, params) {
     else if (f.op === 'not_is') { partes.push(`${col} is not ${f.val === null ? 'null' : f.val ? 'true' : 'false'}`); }
     else if (f.op === 'gte') { params.push(f.val); partes.push(`${col} >= $${params.length}`); }
     else if (f.op === 'lte') { params.push(f.val); partes.push(`${col} <= $${params.length}`); }
+    else if (f.op === 'gt') { params.push(f.val); partes.push(`${col} > $${params.length}`); }
     else throw new Error('filtro não suportado no teste: ' + f.op);
   }
   return partes.length ? ' where ' + partes.join(' and ') : '';
@@ -162,6 +163,7 @@ export function construtor(sub, table) {
     upsert(values) { q.op = 'upsert'; q.values = values; return b; },
     gte(col, val) { q.filters.push({ op: 'gte', col, val }); return b; },
     lte(col, val) { q.filters.push({ op: 'lte', col, val }); return b; },
+    gt(col, val) { q.filters.push({ op: 'gt', col, val }); return b; },
     update(values) { q.op = 'update'; q.values = values; return b; },
     delete() { q.op = 'delete'; return b; },
     eq(col, val) { q.filters.push({ op: 'eq', col, val }); return b; },

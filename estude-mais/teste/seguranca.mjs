@@ -120,5 +120,37 @@ if (ana && prof) {
   console.log('FALHA sem os usuários do e2e para os testes sociais'); falhas++;
 }
 
+// ---------- conta do criador: ninguém vira criador sozinho; XP, papel e liga não mudam direto pela tabela ----------
+{
+  const porEmail = async (e) => (await poolAdmin.query('select u.id, u.auth_user_id, u.xp, u.papel, u.divisao from be_usuarios u join auth.users a on a.id = u.auth_user_id where a.email = $1', [e])).rows[0];
+  const ana2 = await porEmail('ana@teste.com');
+  const dono = await porEmail('dono@teste.com');
+  const carlos = await porEmail('prof@teste.com');
+  if (ana2 && dono && carlos) {
+    const c1 = await executar(ana2.auth_user_id, { table: 'be_criadores', op: 'insert', values: { usuario_id: ana2.id }, filters: [], order: [] });
+    confere(!!c1.error, 'aluna não se coloca como criadora');
+    const c2 = await executar(ana2.auth_user_id, { table: 'be_criadores', op: 'select', columns: '*', filters: [], order: [] });
+    confere(!c2.error && c2.data.length === 0, 'ninguém lê a lista de criadores pela tabela');
+    const c3 = await chamarRpc(ana2.auth_user_id, 'be_painel_criador', {});
+    confere(!!c3.error, 'aluna não abre o painel do criador');
+    const c4 = await chamarRpc(ana2.auth_user_id, 'be_moderar', { p_tipo: 'resumo', p_alvo: dono.id, p_acao: 'ocultar' });
+    confere(!!c4.error && /criador/.test(c4.error.message), 'aluna não modera resumo nem mensagem');
+    const c5 = await chamarRpc(ana2.auth_user_id, 'be_silenciar', { p_usuario: dono.id, p_dias: 30 });
+    confere(!!c5.error, 'aluna não silencia ninguém');
+    const c6 = await executar(ana2.auth_user_id, { table: 'be_silenciados', op: 'insert', values: { usuario_id: carlos.id, ate: '2099-01-01' }, filters: [], order: [] });
+    confere(!!c6.error, 'aluna não silencia ninguém direto na tabela');
+    await executar(ana2.auth_user_id, { table: 'be_usuarios', op: 'update', values: { xp: 999999, papel: 'professor', divisao: 'diamante', nivel: 99 }, filters: [{ op: 'eq', col: 'id', val: ana2.id }], order: [] });
+    const depois = await porEmail('ana@teste.com');
+    confere(depois.xp === ana2.xp && depois.papel === ana2.papel && depois.divisao === ana2.divisao, 'XP, papel e liga não mudam direto pela tabela');
+    const c7 = await chamarRpc(ana2.auth_user_id, 'be_silenciado_ate', { p_usuario: carlos.id });
+    const c8 = await chamarRpc(carlos.auth_user_id, 'be_silenciado_ate', { p_usuario: carlos.id });
+    confere(!c7.error && c7.data === null && !c8.error && c8.data !== null, 'só a própria pessoa e o criador sabem de um silêncio');
+    const c9 = await chamarRpc(dono.auth_user_id, 'be_painel_criador', {});
+    confere(!c9.error && c9.data.numeros.contas >= 4 && c9.data.silenciados.length === 1, 'o criador abre o painel');
+    const c10 = await chamarRpc(carlos.auth_user_id, 'be_enviar_mensagem', { p_sala: (await poolAdmin.query('select id from be_salas where oficial limit 1')).rows[0].id, p_texto: 'oi' });
+    confere(!!c10.error && /sem mandar/.test(c10.error.message), 'quem está silenciado não manda mensagem');
+  } else { console.log('FALHA sem a conta do criador do e2e'); falhas++; }
+}
+
 await pool.end(); await poolAdmin.end();
 process.exit(falhas ? 1 : 0);

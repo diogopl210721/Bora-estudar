@@ -30,10 +30,12 @@ Deno.serve(async (req) => {
     const { data: usuario } = await admin.from("be_usuarios").select("id").eq("auth_user_id", auth.user.id).single();
     if (!usuario) return resposta({ error: "usuário não encontrado" }, 401);
 
+    // a conta do criador (be_criadores) não tem limite diário
+    const { data: criador } = await admin.rpc("be_eh_criador", { p_usuario: usuario.id });
     const hoje = new Date().toISOString().slice(0, 10);
     const { data: uso } = await admin.from("be_uso_tutor").select("quantidade").eq("usuario_id", usuario.id).eq("data", hoje).maybeSingle();
     const usado = uso?.quantidade ?? 0;
-    if (usado >= LIMITE_TUTOR_DIA) return resposta({ error: `Você já fez ${LIMITE_TUTOR_DIA} perguntas hoje. O tutor volta amanhã!` }, 429);
+    if (!criador && usado >= LIMITE_TUTOR_DIA) return resposta({ error: `Você já fez ${LIMITE_TUTOR_DIA} perguntas hoje. O tutor volta amanhã!` }, 429);
 
     // conversa: continua a do aluno ou abre uma nova
     let conversaId = pedido.conversaId;
@@ -88,7 +90,7 @@ Deno.serve(async (req) => {
       if ((perguntas ?? 0) >= 10) await admin.rpc("be_conceder_conquista", { p_usuario: usuario.id, p_codigo: "tutor_curioso" });
     }
 
-    return resposta({ ok: true, conversa_id: conversaId, resposta: texto, xp, restantes: LIMITE_TUTOR_DIA - (usado + 1) });
+    return resposta({ ok: true, conversa_id: conversaId, resposta: texto, xp, restantes: criador ? null : LIMITE_TUTOR_DIA - (usado + 1) });
   } catch (err) {
     return resposta({ error: "erro inesperado", detalhe: String(err) }, 500);
   }

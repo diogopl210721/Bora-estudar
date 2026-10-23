@@ -54,3 +54,11 @@ export function lerModeracao(bruto: string): { aprovado: boolean; motivo: string
   const j = JSON.parse(limpo.slice(ini, fim + 1));
   return { aprovado: j.aprovado === true, motivo: typeof j.motivo === "string" ? j.motivo.slice(0, 300) : "" };
 }
+
+// "25/10 às 14:30" no horário de Brasília (mensagem pra quem está silenciado)
+export function dataHora(iso: string): string {
+  const d = new Date(iso);
+  const dia = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+  const hora = d.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+  return `${dia} às ${hora}`;
+}

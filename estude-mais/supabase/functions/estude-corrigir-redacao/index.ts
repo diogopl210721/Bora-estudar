@@ -52,10 +52,12 @@ Deno.serve(async (req) => {
     const { data: usuario } = await admin.from("be_usuarios").select("id").eq("auth_user_id", auth.user.id).single();
     if (!usuario) return resposta({ error: "usuário não encontrado" }, 401);
 
+    // a conta do criador (be_criadores) não tem limite diário
+    const { data: criador } = await admin.rpc("be_eh_criador", { p_usuario: usuario.id });
     const hoje = new Date().toISOString().slice(0, 10);
     const { data: uso } = await admin.from("be_uso_ia").select("quantidade").eq("usuario_id", usuario.id).eq("data", hoje).maybeSingle();
     const usado = uso?.quantidade ?? 0;
-    if (usado >= LIMITE_DIARIO) {
+    if (!criador && usado >= LIMITE_DIARIO) {
       return resposta({ error: `Sua energia de hoje acabou (${LIMITE_DIARIO} usos de IA por dia). Ela recarrega amanhã!` }, 429);
     }
 
@@ -90,7 +92,7 @@ Deno.serve(async (req) => {
     await admin.rpc("be_ganhar_xp", { p_usuario: usuario.id, p_tipo: "redacao", p_pontos: 30, p_ref: salva.id });
     if (correcao.total >= 800) await admin.rpc("be_conceder_conquista", { p_usuario: usuario.id, p_codigo: "redacao_800" });
 
-    return resposta({ ok: true, id: salva.id, ...correcao, xp: 30, energia_restante: LIMITE_DIARIO - (usado + 1) });
+    return resposta({ ok: true, id: salva.id, ...correcao, xp: 30, energia_restante: criador ? null : LIMITE_DIARIO - (usado + 1) });
   } catch (err) {
     return resposta({ error: "erro inesperado", detalhe: String(err) }, 500);
   }

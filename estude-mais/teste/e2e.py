@@ -1,5 +1,5 @@
 """Teste de ponta a ponta do Estude+ contra o banco local (RLS e funções de verdade, IA simulada)."""
-import os, re, sys, json, datetime
+import os, re, sys, json, datetime, subprocess
 from playwright.sync_api import sync_playwright
 
 BASE = 'http://localhost:8787'
@@ -92,6 +92,10 @@ def esperar_dialogo(p, trecho, ms=8000):
 
 def esperar_toast(p, trecho):
     p.wait_for_function("(t) => document.getElementById('toast').textContent.includes(t)", arg=trecho, timeout=6000)
+
+
+def sql(comando):
+    subprocess.run(['psql', '-h', '/tmp', '-p', '54329', '-U', 'postgres', '-d', 'estude', '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-c', comando], check=True, capture_output=True)
 
 
 def cadastrar(p, nome, email, papel='aluno'):
@@ -365,7 +369,9 @@ def principal(pw):
     p.click('.exam-chip:has-text("Química")')
     tela(p, 'materia')
     # na turma do professor a aluna estuda, mas não coloca material nem cria card
-    assert p.locator('#mat-add-row').is_hidden(), 'aluna não devia ver "adicionar material" na turma'
+    # espera a matéria carregar (a tela abre antes de chegar a resposta)
+    p.wait_for_function("() => document.getElementById('mat-titulo').textContent.includes('Química')")
+    p.wait_for_selector('#mat-add-row', state='hidden', timeout=5000)
     p.click('#mat-menu [data-tipo=cards]')
     assert p.locator('#mat-cards:has-text("Criar card")').count() == 0
     p.click('#mat-menu [data-tipo=quiz]')
@@ -557,6 +563,114 @@ def principal(pw):
     p.wait_for_selector('#sala-mensagens .empty')
     p.click('#screen-sala .back-btn')
     tela(p, 'comunidade')
+
+    # ---------- conta do criador (master) ----------
+    p.evaluate("localStorage.clear()")
+    cadastrar(p, 'Diogo Soares', 'dono@teste.com')
+    p.click('text=não tenho código')
+    tela(p, 'home')
+    assert p.inner_text('#home-energia') != '∞', 'conta comum não tem energia infinita'
+    sql("""insert into be_criadores (usuario_id) select u.id from be_usuarios u join auth.users a on a.id = u.auth_user_id where a.email = 'dono@teste.com'""")
+    # 3 denúncias escondem o resumo da Ana; o uso de IA e do tutor do criador já estourou o limite do dia
+    sql("""insert into be_denuncias (usuario_id, alvo_tipo, alvo_id, motivo)
+           select u.id, 'resumo', r.id, v.m from be_resumos r join auth.users aa on aa.email = 'ana@teste.com' join be_usuarios ua on ua.auth_user_id = aa.id and r.autor_id = ua.id,
+             (values ('prof@teste.com', 'parece cópia'), ('bia@teste.com', null), ('dono@teste.com', null)) v(e, m)
+             join auth.users a on a.email = v.e join be_usuarios u on u.auth_user_id = a.id""")
+    sql("""insert into be_uso_tutor (usuario_id, data, quantidade) select u.id, current_date, 60 from be_usuarios u join auth.users a on a.id = u.auth_user_id where a.email = 'dono@teste.com'
+           on conflict (usuario_id, data) do update set quantidade = 60;
+           insert into be_uso_ia (usuario_id, data, quantidade) select u.id, current_date, 7 from be_usuarios u join auth.users a on a.id = u.auth_user_id where a.email = 'dono@teste.com'
+           on conflict (usuario_id, data) do update set quantidade = 7""")
+    entrar(p, 'dono@teste.com')
+    sem_carregando(p, '#home-tarefas')
+    p.wait_for_function("() => document.getElementById('home-energia').textContent === '∞'")
+    r = p.evaluate("(t) => chamarFuncao('estude-corrigir-redacao', { tema: 'Tema livre', texto: t })", REDACAO)
+    assert r['ok'] and r['energia_restante'] is None, 'criador deveria corrigir redação sem limite'
+    r = p.evaluate("() => chamarFuncao('estude-tutor', { texto: 'Quanto é 2 + 2?' })")
+    assert r['ok'] and r['restantes'] is None, 'criador deveria usar o tutor sem limite'
+    p.evaluate('verTutor()')
+    tela(p, 'tutor')
+    p.wait_for_function("() => document.getElementById('tutor-restantes').textContent.includes('sem limite')")
+    p.evaluate('verPerfil()')
+    tela(p, 'perfil')
+    p.wait_for_selector('#perfil-criador:not([hidden])')
+    assert 'criador do Estude+' in p.inner_text('#perfil-meta')
+    shot(p, '38a-criador-perfil')
+    p.click('#perfil-criador')
+    tela(p, 'criador')
+    sem_carregando(p, '#criador-numeros')
+    p.wait_for_selector('#criador-fila .fila-item')
+    abas = p.inner_text('#criador-abas')
+    assert 'resumos (1)' in abas and 'mensagens (1)' in abas, 'fila deveria ter 1 resumo e 1 mensagem: ' + abas
+    shot(p, '38-criador-painel')
+    # resumo escondido pelas denúncias: abre, confere e libera
+    p.click('#criador-fila .fila-acoes button:has-text("abrir")')
+    tela(p, 'resumo')
+    p.wait_for_selector('#res-mod:not([hidden]) .liberar')
+    assert p.locator('#res-denunciar').is_hidden(), 'criador não precisa denunciar'
+    assert '3 denúncias' in p.inner_text('#res-mod')
+    shot(p, '39-criador-resumo')
+    p.click('#res-mod .liberar')
+    esperar_toast(p, 'Resumo no ar')
+    p.wait_for_function("() => !document.querySelector('#res-aviso .aviso-moderacao') && !document.querySelector('#res-mod .liberar')")
+    p.click('#screen-resumo .back-btn')
+    tela(p, 'criador')
+    p.wait_for_function("() => document.getElementById('criador-abas').innerText.includes('resumos (0)')")
+    # mensagem denunciada: silencia o autor por 7 dias e esconde a mensagem
+    p.click('#criador-abas [data-a=mensagens]')
+    p.wait_for_selector('#criador-fila .fila-item')
+    p.click('#criador-fila .fila-acoes button:has-text("silenciar")')
+    esperar_dialogo(p, 'Silenciar Carlos L.')
+    p.wait_for_selector('#criador-silenciados .hist-row')
+    p.wait_for_selector('#criador-fila .fila-item .ocultar')
+    p.click('#criador-fila .fila-item .ocultar')
+    esperar_toast(p, 'Mensagem escondida')
+    p.wait_for_selector('#criador-fila .empty')
+    shot(p, '40-criador-moderado')
+    # aviso numa sala aberta, com link (só a conta do criador pode)
+    p.evaluate('verComunidade()')
+    tela(p, 'comunidade')
+    p.locator('.sala-item:not(.turma)').first.click()
+    tela(p, 'sala')
+    sem_carregando(p, '#sala-mensagens')
+    p.fill('#sala-texto', 'Bem-vindos ao Estude+! Novidades em ddsinovacao.com.br/estudemais')
+    p.click('#sala-enviar')
+    p.wait_for_selector('#sala-mensagens .bolha-linha.minha')
+    p.fill('#sala-texto', 'Qualquer dúvida, chama aqui.')
+    p.click('#sala-enviar')
+    p.wait_for_function("() => document.querySelectorAll('#sala-mensagens .bolha-linha.minha').length === 2")
+    # turma criada pela conta do criador
+    p.evaluate('verGrupos()')
+    tela(p, 'grupos')
+    p.click('text=criar grupo')
+    p.wait_for_selector('#criar-tipo:not([hidden])')
+    p.fill('#input-nome-grupo', 'Monitoria Estude+')
+    p.fill('#input-materia-grupo', 'Matemática')
+    p.click('#btn-criar-grupo')
+    esperar_dialogo(p, 'Grupo criado')
+    p.wait_for_selector('.group-card:has-text("Monitoria Estude+")')
+    assert ', turma,' in p.inner_text('.group-card:has-text("Monitoria Estude+")'), 'deveria ser turma'
+    # quem foi silenciado não manda mensagem
+    entrar(p, 'prof@teste.com')
+    p.evaluate('verComunidade()')
+    tela(p, 'comunidade')
+    p.click('.sala-item.turma:has-text("Química 3ºB")')
+    tela(p, 'sala')
+    sem_carregando(p, '#sala-mensagens')
+    p.fill('#sala-texto', 'Alguém aí?')
+    p.click('#sala-enviar')
+    esperar_toast(p, 'sem mandar mensagens')
+    # aluna vê o aviso com o selo da equipe e não vê o menu de moderação
+    entrar(p, 'ana@teste.com')
+    p.evaluate('verComunidade()')
+    tela(p, 'comunidade')
+    p.locator('.sala-item:not(.turma)').first.click()
+    tela(p, 'sala')
+    p.wait_for_selector('#sala-mensagens .selo-equipe')
+    shot(p, '41-sala-selo-equipe')
+    p.locator('#sala-mensagens .bolha-linha:not(.minha) .bolha').first.click()
+    p.wait_for_selector('#menu-msg')
+    assert p.locator('#menu-msg button:has-text("Silenciar")').count() == 0, 'aluna não pode silenciar'
+    p.evaluate('fecharMenuMensagem()')
 
     # desktop
     entrar(p, 'ana@teste.com')

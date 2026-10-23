@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { LIMITE_PUBLICACOES_DIA, PROMPT_MODERACAO, XP_PUBLICAR, lerModeracao, textoParaModerar, validarPublicacao } from "./nucleo.ts";
+import { LIMITE_PUBLICACOES_DIA, PROMPT_MODERACAO, XP_PUBLICAR, dataHora, lerModeracao, textoParaModerar, validarPublicacao } from "./nucleo.ts";
 
-// Publica um resumo na biblioteca só depois de a IA moderar (o app é usado por menores de idade).
+// Publica um resumo na biblioteca só depois de a IA moderar (o app é usado por menores de idade). A conta do criador publica direto.
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const MODELO_RAPIDO = Deno.env.get("ESTUDE_MODELO_RAPIDO") || "claude-haiku-5-5";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -31,26 +31,33 @@ Deno.serve(async (req) => {
     const { data: usuario } = await admin.from("be_usuarios").select("id").eq("auth_user_id", auth.user.id).single();
     if (!usuario) return resposta({ error: "usuário não encontrado" }, 401);
 
+    // a conta do criador publica sem limite e sem esperar a revisão; quem foi silenciado pela moderação não publica
+    const { data: criador } = await admin.rpc("be_eh_criador", { p_usuario: usuario.id });
+    const { data: silencio } = await admin.from("be_silenciados").select("ate").eq("usuario_id", usuario.id).gt("ate", new Date().toISOString()).maybeSingle();
+    if (silencio) return resposta({ error: `Você está sem publicar até ${dataHora(silencio.ate)} por causa das regras da comunidade.` }, 403);
+
     const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const { count: hoje } = await admin.from("be_resumos").select("id", { count: "exact", head: true })
       .eq("autor_id", usuario.id).gte("created_at", desde);
-    if ((hoje ?? 0) >= LIMITE_PUBLICACOES_DIA) return resposta({ error: `Você já publicou ${LIMITE_PUBLICACOES_DIA} resumos nas últimas 24 horas. Amanhã tem mais!` }, 429);
+    if (!criador && (hoje ?? 0) >= LIMITE_PUBLICACOES_DIA) return resposta({ error: `Você já publicou ${LIMITE_PUBLICACOES_DIA} resumos nas últimas 24 horas. Amanhã tem mais!` }, 429);
 
     if (pub.materiaId) {
       const { data: acesso } = await admin.rpc("be_materia_acessivel_para", { p_usuario: usuario.id, p_materia: pub.materiaId });
       if (!acesso) pub.materiaId = null;
     }
 
-    const ia = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELO_RAPIDO, max_tokens: 300, system: PROMPT_MODERACAO, messages: [{ role: "user", content: textoParaModerar(pub) }] }),
-    });
-    if (!ia.ok) return resposta({ error: "não consegui revisar o resumo agora, tenta de novo daqui a pouco" }, 502);
-    const iaJson = await ia.json();
-    let mod;
-    try { mod = lerModeracao((iaJson.content || []).find((b: { type: string }) => b.type === "text")?.text || ""); }
-    catch { return resposta({ error: "não consegui revisar o resumo agora, tenta de novo daqui a pouco" }, 502); }
+    let mod = { aprovado: true, motivo: "" };
+    if (!criador) {
+      const ia = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model: MODELO_RAPIDO, max_tokens: 300, system: PROMPT_MODERACAO, messages: [{ role: "user", content: textoParaModerar(pub) }] }),
+      });
+      if (!ia.ok) return resposta({ error: "não consegui revisar o resumo agora, tenta de novo daqui a pouco" }, 502);
+      const iaJson = await ia.json();
+      try { mod = lerModeracao((iaJson.content || []).find((b: { type: string }) => b.type === "text")?.text || ""); }
+      catch { return resposta({ error: "não consegui revisar o resumo agora, tenta de novo daqui a pouco" }, 502); }
+    }
 
     const { data: r, error } = await admin.from("be_resumos").insert({
       autor_id: usuario.id, titulo: pub.titulo, materia: pub.materia, serie: pub.serie, conteudo: pub.conteudo,

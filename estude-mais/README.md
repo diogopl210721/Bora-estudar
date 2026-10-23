@@ -27,16 +27,32 @@ Por cima disso, o que um app de estudo social tem: **biblioteca de resumos** fei
 | Tutor de IA com foto, uma conversa por dúvida (60 perguntas/dia, 3 XP até 5 vezes por dia) | Edge Function `estude-tutor` |
 | Responder flashcard falando (a IA confere pelo sentido e sugere a nota) | Edge Function `estude-conferir-resposta` + `site/voz.js` |
 | Salas da comunidade e da turma, não lidas, denúncia e bloqueio | `be_salas_lista`, `be_mensagens_sala`, `be_enviar_mensagem`, `be_denunciar`, `be_bloquear` |
+| Conta do criador (master): sem limite de IA, tutor, publicação e ritmo de mensagem; escolhe turma ou grupo ao criar; painel com números do app e fila de denúncias; liberar, esconder e silenciar por uns dias; selo "equipe Estude+" | tabela `be_criadores`, `be_painel_criador`, `be_moderar`, `be_silenciar`, `site/criador.js` |
 
 Toda regra que dá XP ou confere resposta roda no banco (`security definer` + checagem de dono). O navegador nunca recebe o gabarito antes de responder.
 As funções internas (dar XP, conquista, liga, domínio, uso de IA, importação) chamam `be_exigir_interno()`: pelo app (papel `authenticator`) só funcionam dentro de uma rpc do próprio Estude+ ou com a service role. O teste `teste/seguranca.mjs` confere isso.
+XP, nível, sequência, liga e papel (aluno/professor) não mudam direto pela tabela `be_usuarios`: o gatilho `be_usuarios_protege` desfaz qualquer mudança nesses campos que venha do app.
+
+## Conta do criador
+
+Quem está na tabela `be_criadores` é a conta master. A tabela não tem acesso pelo app (nem pra ler), então ninguém se promove sozinho. Pra dar ou conferir no SQL Editor:
+```sql
+insert into be_criadores (usuario_id)
+select u.id from be_usuarios u join auth.users a on a.id = u.auth_user_id where lower(a.email) = 'email@da.conta'
+on conflict do nothing;
+select u.nome from be_criadores c join be_usuarios u on u.id = c.usuario_id;
+```
+Pra tirar, apague a linha dessa conta em `be_criadores`.
+No app, a conta master vê o **Painel do criador** (Perfil ou barra lateral): pessoas, uso do dia e conteúdo; a fila do que foi denunciado (abrir, liberar, manter escondido, silenciar o autor por 7 dias); e quem está silenciado. Nas salas, tocar numa mensagem dá "esconder pra todo mundo" e "silenciar"; num resumo, aparece a barra de moderação. Nada é apagado: esconder só tira de vista.
+Mesmo pra conta master, as conversas com o tutor e as matérias de cada aluno continuam privadas.
 
 ## Proteção dos alunos (muitos são menores de idade)
 
 - Em público só aparece primeiro nome + inicial do sobrenome ("Ana S.") e as iniciais, nunca a foto.
 - Não existe mensagem privada entre alunos; as salas de turma só são vistas por quem é da turma.
 - Mensagens e resumos não aceitam link, e-mail, @ de rede social nem telefone (datas e contas passam). Envio de mensagem limitado (3 s entre mensagens, 12 por minuto).
-- Resumo só aparece depois da moderação por IA; 3 denúncias de pessoas diferentes escondem o resumo ou a mensagem.
+- Resumo só aparece depois da moderação por IA; 3 denúncias de pessoas diferentes escondem o resumo ou a mensagem até a conta do criador revisar.
+- A conta do criador pode silenciar alguém por uns dias: a pessoa continua estudando, mas não manda mensagem nem publica resumo.
 - Bloquear alguém esconde as mensagens e os resumos dessa pessoa pra quem bloqueou.
 - O tutor tem instrução de não pedir dados pessoais e de acolher e indicar o CVV (188) se o aluno contar que está sofrendo.
 
@@ -52,7 +68,7 @@ Com "reduzir movimento" ligado no aparelho saem deslocamentos, giros e confete, 
 
 ## Como subir (ordem)
 
-1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`, `supabase/04_estude_social.sql`, `supabase/05_estude_social_funcoes.sql`, `supabase/06_estude_cadastro.sql`, `supabase/07_estude_plano_substituidas.sql`, `supabase/08_estude_grupos_permissoes.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
+1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`, `supabase/04_estude_social.sql`, `supabase/05_estude_social_funcoes.sql`, `supabase/06_estude_cadastro.sql`, `supabase/07_estude_plano_substituidas.sql`, `supabase/08_estude_grupos_permissoes.sql`, `supabase/09_estude_criador.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
    O texto colado fica em `be_materiais` como `tipo = 'link'` sem `url_externa` (a tabela original não aceita `texto`).
 2. **Funções** — publicar `supabase/functions/estude-gerar-conteudo`, `estude-corrigir-redacao`, `estude-tutor`, `estude-publicar-resumo`, `estude-conferir-resposta` (todas com verificação de JWT), `estude-cadastro` (sem verificação de JWT: é ela que cria a conta) e `estude-importar-enem` (sem verificação de JWT; ela exige a chave descartável).
    Opcional: secrets `ESTUDE_MODELO` (padrão `claude-sonnet-5-5`, usado no material e no tutor) e `ESTUDE_MODELO_RAPIDO` (padrão `claude-haiku-5-5`, usado na moderação e na conferência por voz).
@@ -70,11 +86,12 @@ Com "reduzir movimento" ligado no aparelho saem deslocamentos, giros e confete, 
    ```
    Alternativa offline: `python3 scripts/montar_enem.py <clone do enem-api> <commit> <saida>` gera lotes SQL.
 4. **Site** — copiar `site/` para a pasta `estudemais/` do repositório do domínio.
-5. **Login** — só e-mail e senha. O cadastro pede a senha 2 vezes e a função `estude-cadastro` cria a conta já confirmada, sem e-mail de confirmação (no máximo 5 contas novas por hora do mesmo endereço). Não precisa mexer na configuração de Auth do projeto, que é compartilhado com outros apps. Esqueceu a senha: pergunta de segurança, pela função `resetar-senha-segura` do Bora Estudar.
+5. **Login** — só e-mail e senha. O cadastro pede o e-mail e a senha 2 vezes e a função `estude-cadastro` cria a conta já confirmada, sem e-mail de confirmação (no máximo 5 contas novas por hora do mesmo endereço). Não precisa mexer na configuração de Auth do projeto, que é compartilhado com outros apps. Esqueceu a senha: só as contas antigas, que têm pergunta de segurança, trocam sozinhas (função `resetar-senha-segura` do Bora Estudar); as contas novas não têm pergunta.
 
 ## Testes
 
 `teste/rodar.sh` sobe um Postgres local com o espelho das tabelas do Bora Estudar + as migrações, um servidor que imita o Supabase (com RLS de verdade) e IA simulada, e passa o app inteiro no Chromium: cadastro, matéria com IA, quiz, plano, flashcards (com resposta conferida pela IA), simulado, redação, liga, turma do professor, publicar e moderar resumo, biblioteca (busca, curtir, salvar, seguir, perfil), tutor com texto e foto, salas (filtro de telefone, denúncia), desktop e modo escuro.
-`teste/seguranca.mjs` confere as funções internas e as regras da parte social (não publicar sem moderação, não mexer no resumo dos outros, não escrever direto na sala, quem é de fora não vê a turma, bloqueio).
+`teste/seguranca.mjs` confere as funções internas e as regras da parte social (não publicar sem moderação, não mexer no resumo dos outros, não escrever direto na sala, quem é de fora não vê a turma, bloqueio) e da conta do criador (ninguém se promove, só o criador modera e silencia, XP e papel não mudam pela tabela).
+O e2e também passa pela conta do criador: sem limite com o uso do dia estourado, painel, liberar resumo, silenciar, esconder mensagem, link na sala e turma criada.
 
 Questões do ENEM: provas oficiais do INEP organizadas pelo projeto aberto [enem.dev](https://enem.dev) (yunger7/enem-api).

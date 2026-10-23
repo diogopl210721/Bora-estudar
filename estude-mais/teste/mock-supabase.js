@@ -16,6 +16,7 @@
       upsert(v) { q.op = 'upsert'; q.values = v; return b; },
       gte(col, val) { q.filters.push({ op: 'gte', col, val }); return b; },
       lte(col, val) { q.filters.push({ op: 'lte', col, val }); return b; },
+      gt(col, val) { q.filters.push({ op: 'gt', col, val }); return b; },
       update(v) { q.op = 'update'; q.values = v; return b; },
       delete() { q.op = 'delete'; return b; },
       eq(col, val) { q.filters.push({ op: 'eq', col, val }); return b; },

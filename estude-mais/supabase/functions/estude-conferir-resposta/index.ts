@@ -31,10 +31,12 @@ Deno.serve(async (req) => {
     const { data: usuario } = await admin.from("be_usuarios").select("id").eq("auth_user_id", auth.user.id).single();
     if (!usuario) return resposta({ error: "usuário não encontrado" }, 401);
 
+    // a conta do criador (be_criadores) não tem limite diário
+    const { data: criador } = await admin.rpc("be_eh_criador", { p_usuario: usuario.id });
     const hoje = new Date().toISOString().slice(0, 10);
     const { data: uso } = await admin.from("be_uso_tutor").select("quantidade").eq("usuario_id", usuario.id).eq("data", hoje).maybeSingle();
     const usado = uso?.quantidade ?? 0;
-    if (usado >= LIMITE_TUTOR_DIA) return resposta({ error: "Limite de conferências por voz de hoje atingido. Avalie o card nos botões." }, 429);
+    if (!criador && usado >= LIMITE_TUTOR_DIA) return resposta({ error: "Limite de conferências por voz de hoje atingido. Avalie o card nos botões." }, 429);
 
     const ia = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
