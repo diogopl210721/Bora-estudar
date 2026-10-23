@@ -12,7 +12,7 @@ Por cima disso, o que um app de estudo social tem: **biblioteca de resumos** fei
 
 | Recurso | Onde mora a regra |
 | --- | --- |
-| Plano de prova (distribui os tópicos até a véspera, mais fracos primeiro, prova simulada no fim) | `be_gerar_plano` |
+| Plano de prova (distribui os tópicos até a véspera, mais fracos primeiro, prova simulada no fim; ao remontar, as tarefas antigas ficam marcadas como substituídas, nada é apagado) | `be_gerar_plano` |
 | Tarefas do dia, marcar feita, mover de dia, tarefa manual | `be_resumo_hoje`, `be_marcar_tarefa`, tabela `be_plano_tarefas` |
 | Flashcards com repetição espaçada FSRS-4.5 (retenção alvo 90%) | `be_revisar_card`, `be_cards_para_revisar` |
 | Domínio por tópico (sobe a cada acerto) | `be_responder_pergunta` → `be_dominio` |
@@ -48,7 +48,7 @@ Efeitos em `site/efeitos.js` (confete, XP voando, subir de nível, carimbo de di
 
 ## Como subir (ordem)
 
-1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`, `supabase/04_estude_social.sql`, `supabase/05_estude_social_funcoes.sql`, `supabase/06_estude_cadastro.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
+1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`, `supabase/04_estude_social.sql`, `supabase/05_estude_social_funcoes.sql`, `supabase/06_estude_cadastro.sql`, `supabase/07_estude_plano_substituidas.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
    O texto colado fica em `be_materiais` como `tipo = 'link'` sem `url_externa` (a tabela original não aceita `texto`).
 2. **Funções** — publicar `supabase/functions/estude-gerar-conteudo`, `estude-corrigir-redacao`, `estude-tutor`, `estude-publicar-resumo`, `estude-conferir-resposta` (todas com verificação de JWT), `estude-cadastro` (sem verificação de JWT: é ela que cria a conta) e `estude-importar-enem` (sem verificação de JWT; ela exige a chave descartável).
    Opcional: secrets `ESTUDE_MODELO` (padrão `claude-sonnet-5-5`, usado no material e no tutor) e `ESTUDE_MODELO_RAPIDO` (padrão `claude-haiku-5-5`, usado na moderação e na conferência por voz).

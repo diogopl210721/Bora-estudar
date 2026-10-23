@@ -329,8 +329,9 @@ begin
   if v_m.data_prova is null then raise exception 'defina a data da prova para montar o plano'; end if;
   if v_m.data_prova < v_hoje then raise exception 'a data da prova já passou'; end if;
 
-  delete from be_plano_tarefas
-  where usuario_id = v_u and materia_id = p_materia and not manual and feita_em is null and dia >= v_hoje;
+  -- as tarefas automáticas futuras ainda não feitas saem do plano (ficam guardadas como substituídas, nada é apagado)
+  update be_plano_tarefas set substituida = true
+  where usuario_id = v_u and materia_id = p_materia and not manual and feita_em is null and dia >= v_hoje and not substituida;
 
   select coalesce(dias_estudo, '{1,2,3,4,5,6}') into v_dias_estudo from be_usuarios where id = v_u;
 
@@ -415,7 +416,7 @@ declare
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
   perform be_modo_interno();
-  select * into v_t from be_plano_tarefas where id = p_tarefa and usuario_id = v_u;
+  select * into v_t from be_plano_tarefas where id = p_tarefa and usuario_id = v_u and not substituida;
   if v_t.id is null then raise exception 'tarefa não encontrada'; end if;
 
   update be_plano_tarefas set feita_em = case when p_feita then coalesce(feita_em, now()) else null end
@@ -427,7 +428,7 @@ begin
   end if;
 
   if p_feita and v_t.dia = v_hoje and not exists (
-       select 1 from be_plano_tarefas where usuario_id = v_u and dia = v_hoje and feita_em is null) then
+       select 1 from be_plano_tarefas where usuario_id = v_u and dia = v_hoje and feita_em is null and not substituida) then
     v_completo := true;
     perform be_conceder_conquista(v_u, 'plano_em_dia');
     if not exists (select 1 from be_xp_eventos where usuario_id = v_u and tipo = 'dia_completo'
@@ -602,7 +603,7 @@ begin
   where m.status = 'ativa' and m.data_prova >= v_hoje
     and (m.usuario_id = v_u or m.grupo_id in (select grupo_id from be_grupo_membros where usuario_id = v_u))
     and exists (select 1 from be_topicos t where t.materia_id = m.id)
-    and not exists (select 1 from be_plano_tarefas pt where pt.materia_id = m.id and pt.usuario_id = v_u);
+    and not exists (select 1 from be_plano_tarefas pt where pt.materia_id = m.id and pt.usuario_id = v_u and not pt.substituida);
 
   select * into v_usr from be_usuarios where id = v_u;
   v_streak := case when v_usr.ultima_atividade >= v_hoje - 1 then v_usr.streak_atual else 0 end;
@@ -634,7 +635,7 @@ begin
                                         'topico_id', t.topico_id, 'dia', t.dia, 'atrasada', t.dia < v_hoje)
                       order by t.dia, m.nome, t.ordem)
       from be_plano_tarefas t join be_materias m on m.id = t.materia_id
-      where t.usuario_id = v_u and m.status = 'ativa'
+      where t.usuario_id = v_u and m.status = 'ativa' and not t.substituida
         and (t.dia = v_hoje or (t.dia < v_hoje and t.feita_em is null and t.dia >= v_hoje - 3))
     ), '[]'::json),
     'provas', coalesce((
@@ -752,7 +753,7 @@ begin
     'tarefas', coalesce((select json_agg(json_build_object('id', t.id, 'dia', t.dia, 'tipo', t.tipo, 'titulo', t.titulo,
                                  'minutos', t.minutos, 'feita', t.feita_em is not null, 'manual', t.manual, 'topico_id', t.topico_id)
                                order by t.dia, t.ordem)
-                         from be_plano_tarefas t where t.materia_id = p_materia and t.usuario_id = v_u
+                         from be_plano_tarefas t where t.materia_id = p_materia and t.usuario_id = v_u and not t.substituida
                            and (t.dia >= v_hoje - 3 or t.feita_em is null)), '[]'::json),
     'resultado', case when v_m.status = 'arquivada' then (
         select json_build_object('respondidas', count(*), 'acertos', count(*) filter (where te.acertou))

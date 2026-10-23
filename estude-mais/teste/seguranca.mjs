@@ -57,6 +57,21 @@ if (ana && prof) {
   const r5 = await executar(ana.auth_user_id, { table: 'be_uso_tutor', op: 'update', values: { quantidade: 0 }, filters: [], order: [] });
   const uso = (await poolAdmin.query('select coalesce(sum(quantidade), 0)::int n from be_uso_tutor where usuario_id = $1', [ana.id])).rows[0].n;
   confere(uso > 0, 'aluno não zera o próprio limite do tutor' + (r5.error ? '' : ''));
+  // remontar o plano: as tarefas antigas somem do app sem ser apagadas, e nada fica duplicado
+  const bio = (await poolAdmin.query("select id from be_materias where usuario_id = $1 and nome = 'Biologia'", [ana.id])).rows[0];
+  if (bio) {
+    const g = await chamarRpc(ana.auth_user_id, 'be_gerar_plano', { p_materia: bio.id });
+    const vis = await executar(ana.auth_user_id, { table: 'be_plano_tarefas', op: 'select', columns: 'id, manual, feita_em, dia', filters: [{ op: 'eq', col: 'materia_id', val: bio.id }], order: [] });
+    const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const futurasAuto = (vis.data || []).filter((t) => !t.manual && !t.feita_em && String(t.dia instanceof Date ? t.dia.toISOString() : t.dia).slice(0, 10) >= hoje).length;
+    const subst = (await poolAdmin.query('select count(*)::int n from be_plano_tarefas where usuario_id = $1 and materia_id = $2 and substituida', [ana.id, bio.id])).rows[0].n;
+    confere(!g.error && futurasAuto === g.data, `remontar o plano não duplica tarefas (${futurasAuto} visíveis, ${g.data} novas)`);
+    confere(subst > 0 && !(vis.data || []).some((t) => t.substituida), `tarefas antigas ficam guardadas como substituídas (${subst}) e não aparecem no app`);
+    const hojeRpc = await chamarRpc(ana.auth_user_id, 'be_resumo_hoje', {});
+    const ids = new Set((hojeRpc.data.tarefas || []).map((t) => t.id));
+    const vazou = (await poolAdmin.query('select id from be_plano_tarefas where usuario_id = $1 and substituida', [ana.id])).rows.some((r) => ids.has(r.id));
+    confere(!vazou, 'o Hoje não mostra tarefa substituída');
+  }
   // terceira pessoa, fora da turma: não vê a sala nem as mensagens da turma
   const fora = (await poolAdmin.query("insert into auth.users (id, email) values (gen_random_uuid(), 'fora@teste.com') returning id")).rows[0].id;
   await poolAdmin.query("insert into be_usuarios (auth_user_id, nome, papel) values ($1, 'Pessoa de Fora', 'aluno')", [fora]);
