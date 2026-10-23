@@ -43,11 +43,6 @@
         removeChannel() { window.__canais = (window.__canais || 1) - 1; return Promise.resolve('ok'); },
         auth: {
           async getSession() { return { data: { session: ler() } }; },
-          async signUp({ email, password }) {
-            const r = await post('/__auth/signup', { email, password });
-            if (r.error) return { data: {}, error: r.error };
-            gravar(r.session); return { data: { user: r.session.user, session: r.session }, error: null };
-          },
           async signInWithPassword({ email, password }) {
             const r = await post('/__auth/login', { email, password });
             if (r.error) return { data: {}, error: r.error };
@@ -56,7 +51,6 @@
           async signOut() { gravar(null); return { error: null }; },
           onAuthStateChange(cb) { ouvintes.push(cb); return { data: { subscription: { unsubscribe() {} } } }; },
           async updateUser() { return { data: {}, error: null }; },
-          async signInWithOAuth() { return { error: { message: 'sem Google no teste' } }; },
           async resetPasswordForEmail() { return { error: null }; },
         },
       };

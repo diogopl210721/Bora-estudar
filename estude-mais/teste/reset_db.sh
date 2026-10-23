@@ -9,5 +9,6 @@ $P -d estude -f ../supabase/02_estude_funcoes.sql 2>&1 | grep -v NOTICE || true
 $P -d estude -f ../supabase/03_enem_importacao.sql 2>&1 | grep -v NOTICE || true
 $P -d estude -f ../supabase/04_estude_social.sql 2>&1 | grep -v NOTICE || true
 $P -d estude -f ../supabase/05_estude_social_funcoes.sql 2>&1 | grep -v NOTICE || true
+$P -d estude -f ../supabase/06_estude_cadastro.sql 2>&1 | grep -v NOTICE || true
 for f in ../supabase/enem/enem_*.sql; do $P -d estude -f $f >/dev/null; done
 $P -d estude -c "select count(*) as questoes_enem from be_enem_questoes"

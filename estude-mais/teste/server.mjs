@@ -9,6 +9,7 @@ import { normalizarCorrecao } from '../supabase/functions/estude-corrigir-redaca
 import { LIMITE_TUTOR_DIA, XP_TUTOR, XP_TUTOR_MAX_DIA, limparResposta, montarMensagens, tituloDaConversa, validarPedido } from '../supabase/functions/estude-tutor/nucleo.ts';
 import { LIMITE_PUBLICACOES_DIA, XP_PUBLICAR, lerModeracao, textoParaModerar, validarPublicacao } from '../supabase/functions/estude-publicar-resumo/nucleo.ts';
 import { lerConferencia, validarConferencia } from '../supabase/functions/estude-conferir-resposta/nucleo.ts';
+import { LIMITE_CADASTROS_HORA_IP, hashIp, validarCadastro } from '../supabase/functions/estude-cadastro/nucleo.ts';
 
 const SITE = path.resolve(import.meta.dirname, '../site');
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
@@ -208,6 +209,21 @@ async function conferirResposta(req, res) {
   json(res, { ok: true, ...r });
 }
 
+// cadastro sem e-mail de confirmação: mesma validação e limite da Edge Function
+async function cadastro(req, res) {
+  let dados;
+  try { dados = validarCadastro(await lerCorpo(req)); } catch (e) { return json(res, { error: e.message }, 400); }
+  const ipHash = await hashIp(req.socket.remoteAddress || 'local');
+  const { rows } = await pool.query("select count(*)::int n from public.be_cadastro_tentativas where ip_hash = $1 and created_at > now() - interval '1 hour'", [ipHash]);
+  if (rows[0].n >= LIMITE_CADASTROS_HORA_IP) return json(res, { error: 'Muitas contas criadas daqui agora. Espera um pouco e tenta de novo.' }, 429);
+  await pool.query('insert into public.be_cadastro_tentativas (ip_hash) values ($1)', [ipHash]);
+  if (senhas.has(dados.email)) return json(res, { error: 'Já existe uma conta com esse e-mail. Entra com sua senha ou toca em "esqueci minha senha".' }, 409);
+  const id = randomUUID();
+  await pool.query('insert into auth.users (id, email) values ($1, $2)', [id, dados.email]);
+  senhas.set(dados.email, { id, password: dados.senha });
+  json(res, { ok: true });
+}
+
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
@@ -221,7 +237,8 @@ http.createServer(async (req, res) => {
       return json(res, { session: { access_token: id, user: { id, email, user_metadata: {} } } });
     }
     if (req.method === 'POST' && url.pathname === '/__auth/login') {
-      const { email, password } = await lerCorpo(req);
+      const { email: bruto, password } = await lerCorpo(req);
+      const email = String(bruto || '').trim().toLowerCase();
       const u = senhas.get(email);
       if (!u || u.password !== password) return json(res, { error: { message: 'Invalid login credentials' } });
       return json(res, { session: { access_token: u.id, user: { id: u.id, email, user_metadata: {} } } });
@@ -231,6 +248,7 @@ http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-gerar-conteudo') return await gerarConteudo(req, res);
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-corrigir-redacao') return await corrigirRedacao(req, res);
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-tutor') return await tutor(req, res);
+    if (req.method === 'POST' && url.pathname === '/functions/v1/estude-cadastro') return await cadastro(req, res);
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-publicar-resumo') return await publicarResumo(req, res);
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-conferir-resposta') return await conferirResposta(req, res);
     if (url.pathname === '/mock-supabase.js') {

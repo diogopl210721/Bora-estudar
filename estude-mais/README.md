@@ -48,9 +48,9 @@ Efeitos em `site/efeitos.js` (confete, XP voando, subir de nível, carimbo de di
 
 ## Como subir (ordem)
 
-1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`, `supabase/04_estude_social.sql`, `supabase/05_estude_social_funcoes.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
+1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`, `supabase/04_estude_social.sql`, `supabase/05_estude_social_funcoes.sql`, `supabase/06_estude_cadastro.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
    O texto colado fica em `be_materiais` como `tipo = 'link'` sem `url_externa` (a tabela original não aceita `texto`).
-2. **Funções** — publicar `supabase/functions/estude-gerar-conteudo`, `estude-corrigir-redacao`, `estude-tutor`, `estude-publicar-resumo`, `estude-conferir-resposta` (todas com verificação de JWT) e `estude-importar-enem` (sem verificação de JWT; ela exige a chave descartável).
+2. **Funções** — publicar `supabase/functions/estude-gerar-conteudo`, `estude-corrigir-redacao`, `estude-tutor`, `estude-publicar-resumo`, `estude-conferir-resposta` (todas com verificação de JWT), `estude-cadastro` (sem verificação de JWT: é ela que cria a conta) e `estude-importar-enem` (sem verificação de JWT; ela exige a chave descartável).
    Opcional: secrets `ESTUDE_MODELO` (padrão `claude-sonnet-5-5`, usado no material e no tutor) e `ESTUDE_MODELO_RAPIDO` (padrão `claude-haiku-5-5`, usado na moderação e na conferência por voz).
 3. **Questões do ENEM** — no SQL Editor:
    ```sql
@@ -66,7 +66,7 @@ Efeitos em `site/efeitos.js` (confete, XP voando, subir de nível, carimbo de di
    ```
    Alternativa offline: `python3 scripts/montar_enem.py <clone do enem-api> <commit> <saida>` gera lotes SQL.
 4. **Site** — copiar `site/` para a pasta `estudemais/` do repositório do domínio.
-5. **Login com Google e link de senha** — em Authentication → URL Configuration, incluir `https://www.ddsinovacao.com.br/estudemais/` nas Redirect URLs.
+5. **Login** — só e-mail e senha. O cadastro pede a senha 2 vezes e a função `estude-cadastro` cria a conta já confirmada, sem e-mail de confirmação (no máximo 5 contas novas por hora do mesmo endereço). Não precisa mexer na configuração de Auth do projeto, que é compartilhado com outros apps. Esqueceu a senha: pergunta de segurança, pela função `resetar-senha-segura` do Bora Estudar.
 
 ## Testes
 

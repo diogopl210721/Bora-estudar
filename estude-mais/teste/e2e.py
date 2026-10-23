@@ -170,6 +170,18 @@ def principal(pw):
     p.goto(BASE)
     tela(p, 'login')
     shot(p, '01-login')
+    # senha digitada diferente nas duas vezes
+    p.click('text=criar minha conta')
+    tela(p, 'cadastro')
+    p.fill('#input-nome', 'Ana Souza')
+    p.fill('#input-email-cadastro', 'ana@teste.com')
+    p.fill('#input-senha-cadastro', 'segredo123')
+    p.fill('#input-senha-cadastro-confirma', 'segredo124')
+    p.fill('#input-pergunta-seguranca', 'pet')
+    p.fill('#input-resposta-seguranca', 'rex')
+    p.click('#btn-cadastro')
+    esperar_dialogo(p, 'as duas senhas não são iguais')
+    assert p.locator('.google-btn').count() == 0, 'não era pra ter login com Google'
     cadastrar(p, 'Ana Souza', 'ana@teste.com')
     p.click('text=não tenho código')
     tela(p, 'home')
@@ -293,6 +305,23 @@ def principal(pw):
     p.click('#btn-salvar-rotina')
     p.wait_for_timeout(400)
     shot(p, '18-perfil')
+
+    # ---------- e-mail que já tem conta ----------
+    p.evaluate("localStorage.clear()")
+    p.goto(BASE)
+    tela(p, 'login')
+    p.click('text=criar minha conta')
+    tela(p, 'cadastro')
+    p.fill('#input-nome', 'Ana de Novo')
+    p.fill('#input-email-cadastro', 'ANA@teste.com')
+    p.fill('#input-senha-cadastro', 'outrasenha')
+    p.fill('#input-senha-cadastro-confirma', 'outrasenha')
+    p.fill('#input-pergunta-seguranca', 'pet')
+    p.fill('#input-resposta-seguranca', 'rex')
+    p.click('#btn-cadastro')
+    esperar_dialogo(p, 'Já existe uma conta')
+    tela(p, 'login')
+    assert p.input_value('#input-email-login') == 'ANA@teste.com'
 
     # ---------- professor + turma ----------
     p.evaluate("localStorage.clear()")
@@ -566,6 +595,7 @@ with sync_playwright() as pw:
         erros.append('falha do teste: ' + str(e)[:200])
 
 print('diálogos:', json.dumps(dialogos, ensure_ascii=False, indent=1))
-reais = [e for e in erros if 'favicon' not in e and 'net::ERR_FAILED' not in e]
+# 409 é o aviso esperado de e-mail que já tem conta
+reais = [e for e in erros if 'favicon' not in e and 'net::ERR_FAILED' not in e and '409 (Conflict)' not in e]
 print('erros:', json.dumps(reais, ensure_ascii=False, indent=1))
 sys.exit(1 if reais else 0)
