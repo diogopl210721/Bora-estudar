@@ -127,12 +127,18 @@ def gerar_materia(p, nome, dias):
     tela(p, 'upload')
     p.fill('#input-materia', nome)
     p.fill('#input-data-prova', (HOJE + datetime.timedelta(days=dias)).isoformat())
-    p.click('.src-tab[data-fonte=texto]')
-    p.fill('#input-texto', TEXTO)
+    if nome == 'Biologia':
+        # foto escolhida vira polaroide com visto
+        p.set_input_files('#input-galeria', os.path.join(os.path.dirname(__file__), 'exercicio.png'))
+        p.wait_for_selector('#foto-moldura.com-foto')
+        shot(p, '02a-upload-foto', 900)
+    else:
+        p.click('.src-tab[data-fonte=texto]')
+        p.fill('#input-texto', TEXTO)
     p.click('#btn-criar-jornada')
     if nome == 'Biologia':
         p.wait_for_selector('#fx-gerando:not([hidden])')
-        p.wait_for_timeout(1300)
+        p.wait_for_timeout(3700)
         p.screenshot(path=os.path.join(SHOTS, '02b-gerando.png'))
     tela(p, 'pronto', 15000)
 

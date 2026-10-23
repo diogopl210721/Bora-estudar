@@ -42,10 +42,13 @@ As funções internas (dar XP, conquista, liga, domínio, uso de IA, importaçã
 
 ## Visual
 
-Visual limpo de app: fundo claro, cartões arredondados, azul como cor principal e capas coloridas na biblioteca; modo escuro pelo Perfil → Aparência (ou igual ao aparelho).
-Navegação de baixo com Hoje, Matérias, Tutor (no centro), Biblioteca e Comunidade; no computador vira barra lateral.
-Fontes no próprio site (`site/fontes/`, licença OFL): Shantell Sans nos destaques e Atkinson Hyperlegible Next no texto.
-Efeitos em `site/efeitos.js` (confete, XP voando, subir de nível, carimbo de dia completo, flashcard que vira). Quem ativa "reduzir movimento" no aparelho vê tudo sem animação.
+Visual "estojo": azul de caneta (#1F4BFF), marca-texto amarelo (#FFE34D), post-it rosa (#FF5C9D) e verde de acerto, sobre fundo frio quase branco; modo escuro em azul-noite (Perfil → Aparência, ou igual ao aparelho).
+O que marca o app são as figurinhas 3D com contorno branco (atalhos, fontes do material, vazios, geração, conquistas), que "descolam" quando tocadas.
+Fontes no próprio site (`site/fontes/`, licença OFL): Unbounded nos títulos e números, Atkinson Hyperlegible Next no texto.
+Ícones: Phosphor Icons (MIT); figurinhas: Fluent Emoji 3D da Microsoft (MIT), já com contorno, em `site/adesivos/` (licenças junto).
+Movimento que responde ao toque: troca de tela com direção (entrar desliza da direita, voltar da esquerda), gota que desliza na barra de baixo, botões que afundam, visto que pula ao marcar tarefa, esqueleto com brilho enquanto carrega.
+Upload: a foto vira polaroide com visto; na geração a foto é escaneada pela faixa de marca-texto, com porcentagem e as 5 etapas ganhando visto.
+Com "reduzir movimento" ligado no aparelho saem deslocamentos, giros e confete, e ficam fades, cores e barras de progresso.
 
 ## Como subir (ordem)
 

@@ -77,7 +77,7 @@ async function gerarConteudo(req, res) {
   const { data: uso } = await admin.from('be_uso_ia').select('quantidade').eq('usuario_id', uid).eq('data', hoje).maybeSingle();
   const usado = uso ? uso.quantidade : 0;
   if (usado >= 7) return json(res, { error: 'Sua energia de hoje acabou (7 gerações por dia). Ela recarrega amanhã!' }, 429);
-  await new Promise((ok) => setTimeout(ok, 2600)); // a IA de verdade leva uns 30 s; aqui só o bastante pra ver a tela de geração
+  await new Promise((ok) => setTimeout(ok, 4600)); // a IA de verdade leva uns 30 s; aqui só o bastante pra ver as etapas da geração
   const gerado = normalizarGerado(extrairJson(IA_CONTEUDO));
   const salvo = await persistirConteudo(admin, { usuarioId: uid, materiaId: corpo.materia_id, tipoFonte: corpo.tipo_fonte, url: null, gerado });
   await admin.rpc('be_incrementar_uso_ia', { p_usuario_id: uid });
