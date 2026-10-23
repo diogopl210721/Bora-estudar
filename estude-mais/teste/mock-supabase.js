@@ -13,6 +13,9 @@
     const b = {
       select(cols = '*', opts = {}) { if (q.op === 'select') { q.columns = cols; if (opts.head) q.head = true; } else q.returning = cols; return b; },
       insert(v) { q.op = 'insert'; q.values = v; return b; },
+      upsert(v) { q.op = 'upsert'; q.values = v; return b; },
+      gte(col, val) { q.filters.push({ op: 'gte', col, val }); return b; },
+      lte(col, val) { q.filters.push({ op: 'lte', col, val }); return b; },
       update(v) { q.op = 'update'; q.values = v; return b; },
       delete() { q.op = 'delete'; return b; },
       eq(col, val) { q.filters.push({ op: 'eq', col, val }); return b; },
@@ -35,6 +38,9 @@
       return {
         from: construtor,
         rpc: (nome, args) => post('/__rpc/' + nome, args),
+        // sem tempo real no teste: o app cai na busca periódica
+        channel() { const c = { on() { return c; }, subscribe(cb) { if (cb) setTimeout(() => cb('CHANNEL_ERROR'), 0); return c; } }; window.__canais = (window.__canais || 0) + 1; return c; },
+        removeChannel() { window.__canais = (window.__canais || 1) - 1; return Promise.resolve('ok'); },
         auth: {
           async getSession() { return { data: { session: ler() } }; },
           async signUp({ email, password }) {

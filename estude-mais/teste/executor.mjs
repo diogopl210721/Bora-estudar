@@ -85,6 +85,19 @@ export async function executar(sub, q) {
         const r = await c.query(`insert into ${tabela} (${cols.map(ident).join(', ')}) values ${vals.join(', ')}${ret}`, params);
         return { data: q.returning ? r.rows : null };
       }
+      if (q.op === 'upsert') {
+        // como o PostgREST: conflito na chave primária atualiza a linha
+        const pk = await c.query(`select a.attname from pg_index i join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+                                  where i.indrelid = $1::regclass and i.indisprimary`, [tabela]);
+        const chave = pk.rows.map((r) => r.attname);
+        const linhas = Array.isArray(q.values) ? q.values : [q.values];
+        const cols = Array.from(new Set(linhas.flatMap((l) => Object.keys(l))));
+        const vals = linhas.map((l) => '(' + cols.map((k) => { if (!(k in l)) return 'default'; params.push(valor(l[k])); return `$${params.length}`; }).join(', ') + ')');
+        const resto = cols.filter((k) => !chave.includes(k));
+        const conflito = resto.length ? `do update set ${resto.map((k) => `${ident(k)} = excluded.${ident(k)}`).join(', ')}` : 'do nothing';
+        await c.query(`insert into ${tabela} (${cols.map(ident).join(', ')}) values ${vals.join(', ')} on conflict (${chave.map(ident).join(', ')}) ${conflito}`, params);
+        return { data: null };
+      }
       if (q.op === 'update') {
         const sets = Object.entries(q.values).map(([k, v]) => { params.push(valor(v)); return `${ident(k)} = $${params.length}`; });
         const ret = q.returning ? ' returning ' + colunas(q.returning) : '';
@@ -146,6 +159,9 @@ export function construtor(sub, table) {
       return b;
     },
     insert(values) { q.op = 'insert'; q.values = values; return b; },
+    upsert(values) { q.op = 'upsert'; q.values = values; return b; },
+    gte(col, val) { q.filters.push({ op: 'gte', col, val }); return b; },
+    lte(col, val) { q.filters.push({ op: 'lte', col, val }); return b; },
     update(values) { q.op = 'update'; q.values = values; return b; },
     delete() { q.op = 'delete'; return b; },
     eq(col, val) { q.filters.push({ op: 'eq', col, val }); return b; },

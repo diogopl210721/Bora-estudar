@@ -24,6 +24,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (d && !d.hidden && !d.dataset.lido) {
       d.dataset.lido = '1';
       window.__registrarDialogo(document.getElementById('dlg-texto').textContent);
+      // pergunta com campo de texto: responde com o que o teste deixou em __respostaDlg
+      if (!document.getElementById('dlg-campo-wrap').hidden) document.getElementById('dlg-campo').value = window.__respostaDlg || '';
       setTimeout(() => { document.getElementById('dlg-ok').click(); delete d.dataset.lido; }, 150);
     }
     const n = document.getElementById('fx-nivel');
@@ -78,6 +80,18 @@ def tela(p, nome, timeout=8000):
 
 def sem_carregando(p, sel):
     p.wait_for_function(f"() => !document.querySelector('{sel} .loading')", timeout=8000)
+
+
+def esperar_dialogo(p, trecho, ms=8000):
+    for _ in range(ms // 100):
+        if any(trecho in d for d in dialogos):
+            return
+        p.wait_for_timeout(100)
+    raise AssertionError('diálogo não apareceu: ' + trecho)
+
+
+def esperar_toast(p, trecho):
+    p.wait_for_function("(t) => document.getElementById('toast').textContent.includes(t)", arg=trecho, timeout=6000)
 
 
 def cadastrar(p, nome, email, papel='aluno'):
@@ -163,7 +177,7 @@ def principal(pw):
     shot(p, '02-hoje-vazio')
 
     # ---------- matéria com IA ----------
-    p.click('.upload-cta')
+    p.click('#home-lado .upload-cta')
     gerar_materia(p, 'Biologia', 12)
     shot(p, '03-pronto')
     p.wait_for_function("() => document.getElementById('pronto-cards').textContent === '5'", timeout=4000)
@@ -216,9 +230,12 @@ def principal(pw):
     p.click('#home-revisao')
     tela(p, 'cards')
     shot(p, '09-card-frente', 600)
-    p.click('#cards-virar')
-    p.wait_for_selector('#cards-notas:not([hidden])')
-    shot(p, '10-card-verso', 800)
+    # responder sem virar: a IA confere a resposta (voz no celular, digitando aqui)
+    p.evaluate("window.__respostaDlg = document.getElementById('flash-verso').textContent")
+    p.click('#cards-digitar')
+    p.wait_for_selector('#cards-voz-res.certo')
+    p.wait_for_selector('#cards-notas:not([hidden]) .grade.g3.sugerida')
+    shot(p, '10-card-verso', 900)
     pronto_ou_proximo = "() => document.querySelector('#screen-cards-fim.active') || !document.getElementById('cards-virar').hidden"
     p.click('.grade.g1')
     p.wait_for_function(pronto_ou_proximo)
@@ -232,7 +249,7 @@ def principal(pw):
     shot(p, '11-cards-fim')
 
     # ---------- ENEM ----------
-    p.click('.navbar [data-s=enem]')
+    p.evaluate('verEnem()')
     tela(p, 'enem')
     shot(p, '12-enem')
     p.click('.area-btn[data-area=matematica]')
@@ -253,7 +270,7 @@ def principal(pw):
     shot(p, '15-simulado-revisao')
 
     # redação
-    p.click('.navbar [data-s=enem]')
+    p.evaluate('verEnem()')
     tela(p, 'enem')
     p.click('text=Corrigir uma redação')
     tela(p, 'redacao')
@@ -265,11 +282,11 @@ def principal(pw):
     shot(p, '16-redacao', 1000)
 
     # liga e perfil
-    p.click('.navbar [data-s=liga]')
+    p.evaluate('verLiga()')
     tela(p, 'liga')
     sem_carregando(p, '#liga-conteudo')
     shot(p, '17-liga')
-    p.click('.navbar [data-s=perfil]')
+    p.evaluate('verPerfil()')
     tela(p, 'perfil')
     p.wait_for_selector('#perfil-dias .chip')
     p.click('#perfil-dias .chip[data-d="6"]')
@@ -284,7 +301,7 @@ def principal(pw):
     tela(p, 'home')
     p.click('.sidebar-nav [data-s=grupos]') if p.locator('#sidebar:not(.sidebar-hidden)').is_visible() else p.evaluate('verGrupos()')
     tela(p, 'grupos')
-    p.click('text=+ criar grupo')
+    p.click('text=criar grupo')
     p.fill('#input-nome-grupo', 'Química 3ºB')
     p.fill('#input-materia-grupo', 'Química')
     p.click('#btn-criar-grupo')
@@ -324,6 +341,157 @@ def principal(pw):
     p.wait_for_selector('#painel-membros .engage-row')
     shot(p, '20-painel-turma')
 
+    # ---------- biblioteca: o professor publica um resumo a partir da matéria da turma ----------
+    p.evaluate('novoResumo()')
+    tela(p, 'publicar')
+    p.wait_for_function("() => document.querySelectorAll('#pub-origem option').length > 1")
+    p.select_option('#pub-origem', label='Química orgânica')
+    p.wait_for_function("() => document.getElementById('pub-conteudo').value.length > 80")
+    p.select_option('#pub-serie', '3º EM')
+    p.click('#pub-cores [data-c=verde]')
+    shot(p, '27-publicar')
+    p.click('#btn-publicar')
+    tela(p, 'resumo', 10000)
+    p.wait_for_selector('#res-autor .avatar')
+    assert p.locator('#res-cards .mini-card').count() == 5, 'flashcards da matéria não foram junto'
+    shot(p, '28-resumo-publicado')
+    # a moderação recusa conteúdo com contato pessoal
+    p.evaluate('novoResumo()')
+    tela(p, 'publicar')
+    p.fill('#pub-titulo', 'Resumo de teste')
+    p.fill('#pub-materia', 'Química')
+    p.fill('#pub-conteudo', 'Me chama no instagram pra trocar resumo. ' + TEXTO)
+    p.click('#btn-publicar')
+    esperar_dialogo(p, 'não foi publicado')
+    # sala da turma: aviso do professor e filtro de contato
+    p.evaluate('verComunidade()')
+    tela(p, 'comunidade')
+    p.wait_for_selector('.sala-item.turma')
+    p.click('.sala-item.turma')
+    tela(p, 'sala')
+    sem_carregando(p, '#sala-mensagens')
+    p.fill('#sala-texto', 'Pessoal, amanhã tem revisão de orgânica. Tragam as dúvidas!')
+    p.click('#sala-enviar')
+    p.wait_for_selector('#sala-mensagens .bolha-linha.minha')
+    p.fill('#sala-texto', 'me chama no zap 41 99999-8888')
+    p.click('#sala-enviar')
+    esperar_toast(p, 'pra proteger')
+    assert p.locator('#sala-mensagens .bolha-linha.minha').count() == 1
+
+    # ---------- aluna: biblioteca, tutor e comunidade ----------
+    entrar(p, 'ana@teste.com')
+    sem_carregando(p, '#home-tarefas')
+    p.wait_for_selector('#home-biblio .capa-resumo')
+    p.wait_for_function("() => !document.getElementById('nav-nao-lidas').hidden")
+    p.click('.navbar [data-s=biblioteca]')
+    tela(p, 'biblioteca')
+    p.wait_for_selector('#bib-lista .capa-resumo')
+    shot(p, '29-biblioteca')
+    p.fill('#bib-busca', 'orgânica')
+    p.wait_for_timeout(900)
+    assert p.locator('#bib-lista .capa-resumo').count() == 1, 'busca não achou o resumo'
+    p.fill('#bib-busca', 'fotossíntese')
+    p.wait_for_selector('#bib-lista .empty')
+    p.fill('#bib-busca', '')
+    p.wait_for_selector('#bib-lista .capa-resumo')
+    p.locator('#bib-lista .capa-resumo').first.click()
+    tela(p, 'resumo')
+    p.wait_for_selector('#res-seguir')
+    p.click('#res-curtir')
+    p.wait_for_function("() => document.getElementById('res-curtidas').textContent === '1'")
+    p.click('#res-salvar')
+    esperar_toast(p, 'Salvo')
+    p.click('#res-seguir')
+    p.wait_for_function("() => document.getElementById('res-seguir').textContent === 'Seguindo'")
+    p.locator('#res-cards .mini-card').first.click()
+    shot(p, '30-resumo')
+    p.click('#res-autor .quem')
+    tela(p, 'autor')
+    p.wait_for_selector('.perfil-publico')
+    assert 'Carlos L.' in p.inner_text('.perfil-publico h1'), 'nome público deveria ser abreviado'
+    shot(p, '31-perfil-publico')
+    p.locator('#autor-conteudo .capa-resumo').first.click()
+    tela(p, 'resumo')
+    p.click('#screen-resumo .back-btn')
+    tela(p, 'autor')
+    p.click('#screen-autor .back-btn')
+    tela(p, 'resumo')
+    p.click('#screen-resumo .back-btn')
+    tela(p, 'biblioteca')
+    p.click('#bib-ordem [data-o=salvos]')
+    p.wait_for_selector('#bib-lista .capa-resumo')
+    p.click('#bib-ordem [data-o=seguindo]')
+    p.wait_for_selector('#bib-lista .capa-resumo')
+    # aluna publica a partir da própria matéria
+    p.evaluate('novoResumo()')
+    tela(p, 'publicar')
+    p.wait_for_function("() => document.querySelectorAll('#pub-origem option').length > 1")
+    p.select_option('#pub-origem', label='Biologia')
+    p.wait_for_function("() => document.getElementById('pub-conteudo').value.length > 80")
+    p.click('#btn-publicar')
+    tela(p, 'resumo', 10000)
+    p.wait_for_selector('#res-apagar:not([hidden])')
+    p.click('#screen-resumo .back-btn')
+    tela(p, 'biblioteca')
+    p.click('#bib-ordem [data-o=meus]')
+    p.wait_for_function("() => document.querySelectorAll('#bib-lista .capa-resumo').length === 1")
+
+    # tutor: pergunta escrita, continuação e foto do exercício
+    p.click('.navbar [data-s=tutor]')
+    tela(p, 'tutor')
+    sem_carregando(p, '#tutor-lista')
+    p.click('#tutor-materias .chip:has-text("Biologia")')
+    shot(p, '32-tutor')
+    p.fill('#tutor-pergunta-rapida', 'Qual a diferença entre mitose e meiose?')
+    p.click('#screen-tutor .ou button')
+    tela(p, 'tutor-chat')
+    p.wait_for_selector('#tchat-mensagens .bolha .ferramentas')
+    p.fill('#tchat-texto', 'E qual das duas forma os gametas?')
+    p.click('#tchat-enviar')
+    p.wait_for_function("() => document.querySelectorAll('#tchat-mensagens .bolha .ferramentas').length === 2")
+    shot(p, '33-tutor-chat')
+    p.click('#screen-tutor-chat .back-btn')
+    tela(p, 'tutor')
+    p.set_input_files('#tutor-foto-input', os.path.join(os.path.dirname(__file__), 'exercicio.png'))
+    tela(p, 'tutor-chat')
+    p.wait_for_selector('#tchat-mensagens img.foto-mini')
+    p.wait_for_function("() => document.getElementById('tchat-mensagens').innerText.includes('x = 4')")
+    shot(p, '34-tutor-foto')
+    p.click('#screen-tutor-chat .back-btn')
+    tela(p, 'tutor')
+    p.wait_for_function("() => document.querySelectorAll('#tutor-lista .conversa-item').length === 2")
+    p.locator('#tutor-lista .conversa-item').last.click()
+    tela(p, 'tutor-chat')
+    p.wait_for_function("() => document.querySelectorAll('#tchat-mensagens .bolha .ferramentas').length === 2")
+
+    # comunidade: sala da turma com o aviso do professor
+    p.evaluate('verComunidade()')
+    tela(p, 'comunidade')
+    p.wait_for_selector('.sala-item.turma .nao-lidas')
+    shot(p, '35-comunidade')
+    p.click('.sala-item.turma')
+    tela(p, 'sala')
+    p.wait_for_selector('#sala-mensagens .bolha-linha:not(.minha)')
+    assert 'Carlos L.' in p.inner_text('#sala-mensagens')
+    p.fill('#sala-texto', 'Professor, vai cair nomenclatura?')
+    p.click('#sala-enviar')
+    p.wait_for_selector('#sala-mensagens .bolha-linha.minha')
+    shot(p, '36-sala')
+    p.locator('#sala-mensagens .bolha-linha:not(.minha) .bolha').first.click()
+    p.wait_for_selector('#menu-msg')
+    p.wait_for_timeout(300)
+    p.screenshot(path=os.path.join(SHOTS, '37-sala-menu.png'))
+    p.click('#menu-msg button:has-text("Denunciar")')
+    esperar_toast(p, 'Obrigado')
+    p.click('#screen-sala .back-btn')
+    tela(p, 'comunidade')
+    p.wait_for_function("() => !document.querySelector('.sala-item.turma .nao-lidas')")
+    p.locator('.sala-item:not(.turma)').first.click()
+    tela(p, 'sala')
+    p.wait_for_selector('#sala-mensagens .empty')
+    p.click('#screen-sala .back-btn')
+    tela(p, 'comunidade')
+
     # desktop
     entrar(p, 'ana@teste.com')
     p.set_viewport_size({'width': 1366, 'height': 900})
@@ -334,6 +502,16 @@ def principal(pw):
     p.evaluate('verEnem()')
     p.wait_for_timeout(900)
     p.screenshot(path=os.path.join(SHOTS, '21b-desktop-enem.png'))
+    p.evaluate('verBiblioteca()')
+    p.wait_for_selector('#bib-lista .capa-resumo')
+    p.wait_for_timeout(600)
+    p.screenshot(path=os.path.join(SHOTS, '21c-desktop-biblioteca.png'))
+    p.evaluate('verComunidade()')
+    p.wait_for_selector('.sala-item.turma')
+    p.click('.sala-item.turma')
+    p.wait_for_selector('#sala-mensagens .bolha-linha')
+    p.wait_for_timeout(500)
+    p.screenshot(path=os.path.join(SHOTS, '21d-desktop-sala.png'))
 
     # modo lousa (escuro)
     p.set_viewport_size({'width': 390, 'height': 844})
@@ -352,6 +530,14 @@ def principal(pw):
     p.wait_for_selector('#quiz-feedback:not([hidden])')
     p.wait_for_timeout(900)
     p.screenshot(path=os.path.join(SHOTS, '24-lousa-quiz.png'))
+    p.evaluate('verBiblioteca()')
+    p.wait_for_selector('#bib-lista .capa-resumo')
+    shot(p, '24b-escuro-biblioteca')
+    p.evaluate('verTutor()')
+    p.wait_for_selector('#tutor-lista .conversa-item')
+    p.locator('#tutor-lista .conversa-item').first.click()
+    p.wait_for_selector('#tchat-mensagens .ferramentas')
+    shot(p, '24c-escuro-tutor')
     p.evaluate("escolherTema('caderno')")
 
     # efeitos em destaque

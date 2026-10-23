@@ -6,6 +6,9 @@ import { randomUUID } from 'node:crypto';
 import { poolAdmin as pool, executar, chamarRpc, clienteAdmin } from './executor.mjs';
 import { extrairJson, normalizarGerado, persistirConteudo } from '../supabase/functions/estude-gerar-conteudo/nucleo.ts';
 import { normalizarCorrecao } from '../supabase/functions/estude-corrigir-redacao/nucleo.ts';
+import { LIMITE_TUTOR_DIA, XP_TUTOR, XP_TUTOR_MAX_DIA, limparResposta, montarMensagens, tituloDaConversa, validarPedido } from '../supabase/functions/estude-tutor/nucleo.ts';
+import { LIMITE_PUBLICACOES_DIA, XP_PUBLICAR, lerModeracao, textoParaModerar, validarPublicacao } from '../supabase/functions/estude-publicar-resumo/nucleo.ts';
+import { lerConferencia, validarConferencia } from '../supabase/functions/estude-conferir-resposta/nucleo.ts';
 
 const SITE = path.resolve(import.meta.dirname, '../site');
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
@@ -104,6 +107,107 @@ async function corrigirRedacao(req, res) {
   json(res, { ok: true, id: data.id, ...c, xp: 30, energia_restante: 5 });
 }
 
+// ---------- tutor, publicação e conferência por voz (mesma lógica das Edge Functions, IA simulada) ----------
+const iaTutor = (msgs) => {
+  const ultima = msgs[msgs.length - 1].content;
+  const temFoto = ultima.some((b) => b.type === 'image');
+  const pergunta = ultima.find((b) => b.type === 'text').text;
+  if (temFoto) return 'Li o exercício da foto: **resolver 2x + 6 = 14**.\n\n1. Tira o 6 dos dois lados: 2x = 14 − 6 = 8.\n2. Divide os dois lados por 2: x = 8 ÷ 2.\n3. Confere: 2·4 + 6 = 14. Certo!\n\n**Resposta: x = 4**\n\nAgora tenta você: quanto dá x em 3x + 3 = 12?';
+  return `Boa pergunta! Vamos por partes sobre "${pergunta.replace(/^\[matéria: [^\]]+\] /, '').slice(0, 60)}".\n\n1. Primeiro, a ideia principal: a mitose gera **duas células iguais**.\n2. Depois, a meiose gera **quatro células** com metade dos cromossomos.\n\nPra fixar: qual das duas forma os gametas?`;
+};
+
+async function tutor(req, res) {
+  const sub = tokenDe(req);
+  const uid = sub && await usuarioDe(sub);
+  if (!uid) return json(res, { error: 'não autenticado' }, 401);
+  let pedido;
+  try { pedido = validarPedido(await lerCorpo(req)); } catch (e) { return json(res, { error: e.message }, 400); }
+  const admin = clienteAdmin();
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data: uso } = await admin.from('be_uso_tutor').select('quantidade').eq('usuario_id', uid).eq('data', hoje).maybeSingle();
+  const usado = uso ? uso.quantidade : 0;
+  if (usado >= LIMITE_TUTOR_DIA) return json(res, { error: `Você já fez ${LIMITE_TUTOR_DIA} perguntas hoje. O tutor volta amanhã!` }, 429);
+  let conversaId = pedido.conversaId;
+  let historico = [];
+  if (conversaId) {
+    const { data: c } = await admin.from('be_tutor_conversas').select('id, usuario_id').eq('id', conversaId).maybeSingle();
+    if (!c || c.usuario_id !== uid) return json(res, { error: 'conversa não encontrada' }, 404);
+    const { data: msgs } = await admin.from('be_tutor_mensagens').select('papel, texto, tinha_foto, created_at').eq('conversa_id', conversaId).order('created_at', { ascending: true });
+    historico = msgs || [];
+  } else {
+    const { data: nova, error } = await admin.from('be_tutor_conversas').insert({ usuario_id: uid, materia: pedido.materia, titulo: tituloDaConversa(pedido.texto, !!pedido.imagem) }).select('id').single();
+    if (error) return json(res, { error: 'não consegui abrir a conversa' }, 500);
+    conversaId = nova.id;
+  }
+  await new Promise((ok) => setTimeout(ok, 900));
+  const texto = limparResposta(iaTutor(montarMensagens(historico, pedido)));
+  const agora = Date.now();
+  await admin.from('be_tutor_mensagens').insert([
+    { conversa_id: conversaId, papel: 'aluno', texto: pedido.texto || 'Resolve esse exercício da foto, passo a passo.', tinha_foto: !!pedido.imagem, created_at: new Date(agora - 5).toISOString() },
+    { conversa_id: conversaId, papel: 'tutor', texto, created_at: new Date(agora).toISOString() },
+  ]);
+  await admin.from('be_tutor_conversas').update({ updated_at: new Date().toISOString() }).eq('id', conversaId);
+  await admin.from('be_uso_tutor').upsert({ usuario_id: uid, data: hoje, quantidade: usado + 1 });
+  let xp = 0;
+  const inicioDia = new Date(); inicioDia.setUTCHours(3, 0, 0, 0);
+  if (inicioDia.getTime() > Date.now()) inicioDia.setUTCDate(inicioDia.getUTCDate() - 1);
+  const { count: xpHoje } = await admin.from('be_xp_eventos').select('id', { count: 'exact', head: true }).eq('usuario_id', uid).eq('tipo', 'tutor').gte('created_at', inicioDia.toISOString());
+  if ((xpHoje ?? 0) < XP_TUTOR_MAX_DIA) { await admin.rpc('be_ganhar_xp', { p_usuario: uid, p_tipo: 'tutor', p_pontos: XP_TUTOR, p_ref: conversaId }); xp = XP_TUTOR; }
+  json(res, { ok: true, conversa_id: conversaId, resposta: texto, xp, restantes: LIMITE_TUTOR_DIA - (usado + 1) });
+}
+
+async function publicarResumo(req, res) {
+  const sub = tokenDe(req);
+  const uid = sub && await usuarioDe(sub);
+  if (!uid) return json(res, { error: 'não autenticado' }, 401);
+  let pub;
+  try { pub = validarPublicacao(await lerCorpo(req)); } catch (e) { return json(res, { error: e.message }, 400); }
+  const admin = clienteAdmin();
+  const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { count: hoje } = await admin.from('be_resumos').select('id', { count: 'exact', head: true }).eq('autor_id', uid).gte('created_at', desde);
+  if ((hoje ?? 0) >= LIMITE_PUBLICACOES_DIA) return json(res, { error: `Você já publicou ${LIMITE_PUBLICACOES_DIA} resumos nas últimas 24 horas. Amanhã tem mais!` }, 429);
+  if (pub.materiaId) {
+    const { data: acesso } = await admin.rpc('be_materia_acessivel_para', { p_usuario: uid, p_materia: pub.materiaId });
+    if (!acesso) pub.materiaId = null;
+  }
+  await new Promise((ok) => setTimeout(ok, 500));
+  // moderação simulada: recusa quando o texto tem contato pessoal ou a palavra-teste PROIBIDO
+  const texto = textoParaModerar(pub);
+  const recusa = /PROIBIDO|whats|instagram/i.test(texto);
+  const mod = lerModeracao(JSON.stringify(recusa ? { aprovado: false, motivo: 'O resumo tem conteúdo que não combina com a biblioteca (contato pessoal ou ofensa).' } : { aprovado: true, motivo: '' }));
+  const { data: r, error } = await admin.from('be_resumos').insert({
+    autor_id: uid, titulo: pub.titulo, materia: pub.materia, serie: pub.serie, conteudo: pub.conteudo,
+    cartoes: pub.cartoes, cor: pub.cor, origem_materia_id: pub.materiaId,
+    status: mod.aprovado ? 'publicado' : 'recusado', motivo_moderacao: mod.aprovado ? null : mod.motivo,
+  }).select('id, status').single();
+  if (error) return json(res, { error: 'não consegui salvar: ' + error.message }, 500);
+  let xp = 0;
+  if (mod.aprovado) {
+    await admin.rpc('be_ganhar_xp', { p_usuario: uid, p_tipo: 'resumo_publicado', p_pontos: XP_PUBLICAR, p_ref: r.id });
+    await admin.rpc('be_conceder_conquista', { p_usuario: uid, p_codigo: 'primeiro_resumo' });
+    xp = XP_PUBLICAR;
+  }
+  json(res, { ok: true, id: r.id, publicado: mod.aprovado, motivo: mod.aprovado ? null : mod.motivo, xp });
+}
+
+async function conferirResposta(req, res) {
+  const sub = tokenDe(req);
+  const uid = sub && await usuarioDe(sub);
+  if (!uid) return json(res, { error: 'não autenticado' }, 401);
+  let c;
+  try { c = validarConferencia(await lerCorpo(req)); } catch (e) { return json(res, { error: e.message }, 400); }
+  const norm = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const chave = norm(c.esperado).split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+  const acertos = chave.filter((w) => norm(c.resposta).includes(w)).length;
+  const resultado = acertos >= Math.max(1, Math.ceil(chave.length / 3)) ? 'certo' : acertos > 0 ? 'quase' : 'errado';
+  const r = lerConferencia(JSON.stringify({ resultado, comentario: resultado === 'certo' ? 'Isso mesmo, você lembrou do essencial.' : `A resposta era: ${c.esperado}`, nota: resultado === 'certo' ? 3 : resultado === 'quase' ? 2 : 1 }));
+  const admin = clienteAdmin();
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data: uso } = await admin.from('be_uso_tutor').select('quantidade').eq('usuario_id', uid).eq('data', hoje).maybeSingle();
+  await admin.from('be_uso_tutor').upsert({ usuario_id: uid, data: hoje, quantidade: (uso ? uso.quantidade : 0) + 1 });
+  json(res, { ok: true, ...r });
+}
+
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
@@ -126,6 +230,9 @@ http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname.startsWith('/__rpc/')) return json(res, await chamarRpc(tokenDe(req), url.pathname.slice(7), await lerCorpo(req)));
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-gerar-conteudo') return await gerarConteudo(req, res);
     if (req.method === 'POST' && url.pathname === '/functions/v1/estude-corrigir-redacao') return await corrigirRedacao(req, res);
+    if (req.method === 'POST' && url.pathname === '/functions/v1/estude-tutor') return await tutor(req, res);
+    if (req.method === 'POST' && url.pathname === '/functions/v1/estude-publicar-resumo') return await publicarResumo(req, res);
+    if (req.method === 'POST' && url.pathname === '/functions/v1/estude-conferir-resposta') return await conferirResposta(req, res);
     if (url.pathname === '/mock-supabase.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript' });
       return res.end(fs.readFileSync(path.join(import.meta.dirname, 'mock-supabase.js')));
