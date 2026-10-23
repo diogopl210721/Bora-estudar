@@ -95,8 +95,9 @@ export async function persistirConteudo(
 ) {
   const { usuarioId, materiaId, tipoFonte, url, gerado } = args;
 
+  // texto colado fica como "link" sem url (o tipo "texto" não existe na tabela original do Bora Estudar)
   await ok(admin.from("be_materiais").insert({
-    materia_id: materiaId, tipo: tipoFonte, url_externa: url,
+    materia_id: materiaId, tipo: tipoFonte === "texto" ? "link" : tipoFonte, url_externa: url,
     texto_extraido: gerado.texto_bruto || null, importado_por: usuarioId,
   }), "salvar material");
 

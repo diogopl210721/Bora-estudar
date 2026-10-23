@@ -10,7 +10,8 @@ create or replace function public.be_enem_upsert(p_chave text, p_linhas jsonb) r
 language plpgsql security definer set search_path = public as $$
 declare v_n int;
 begin
-  if not exists (select 1 from be_import_chave where chave = p_chave) then
+  perform be_exigir_interno();
+  if not exists (select 1 from be_import_chave where chave = p_chave and criada_em > now() - interval '2 hours') then
     raise exception 'chave inválida';
   end if;
   insert into be_enem_questoes (ano, numero, idioma, area, contexto, introducao, alternativas, gabarito)
@@ -23,6 +24,3 @@ begin
   get diagnostics v_n = row_count;
   return v_n;
 end $$;
-
-revoke execute on function public.be_enem_upsert(text, jsonb) from public, anon, authenticated;
-grant execute on function public.be_enem_upsert(text, jsonb) to service_role;

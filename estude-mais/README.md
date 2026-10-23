@@ -21,10 +21,18 @@ Evolução do **Bora Estudar**: o aluno manda o material (foto, PDF, texto, YouT
 | Painel da turma (onde a turma está fraca, quem sumiu) | `be_painel_turma` |
 
 Toda regra que dá XP ou confere resposta roda no banco (`security definer` + checagem de dono). O navegador nunca recebe o gabarito antes de responder.
+As funções internas (dar XP, conquista, liga, domínio, uso de IA, importação) chamam `be_exigir_interno()`: pelo app (papel `authenticator`) só funcionam dentro de uma rpc do próprio Estude+ ou com a service role. O teste `teste/seguranca.mjs` confere isso.
+
+## Visual
+
+Caderno quadriculado, caneta BIC, correção em caneta vermelha e marca-texto; modo escuro vira lousa verde (o aluno escolhe em Perfil → Aparência).
+Fontes no próprio site (`site/fontes/`, licença OFL): Shantell Sans para títulos e anotações à mão, Atkinson Hyperlegible Next para o texto.
+Efeitos em `site/efeitos.js`: marca-texto passando no título de cada tela, carimbo VISTO ao fechar o dia, caneta vermelha circulando a resposta certa e riscando a errada, ficha de flashcard que vira e voa, confete de furador, estrelinha dourada ao subir de nível, pódio da liga, cartão-resposta do ENEM e tela de geração com o marca-texto escaneando a foto. Quem ativa "reduzir movimento" no aparelho vê tudo sem animação.
 
 ## Como subir (ordem)
 
-1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`. Tudo é aditivo e pode rodar de novo sem quebrar.
+1. **Banco** — rodar no SQL Editor, nessa ordem: `supabase/01_estude_schema.sql`, `supabase/02_estude_funcoes.sql`, `supabase/03_enem_importacao.sql`. Tudo é aditivo (só cria ou substitui) e pode rodar de novo sem quebrar.
+   O texto colado fica em `be_materiais` como `tipo = 'link'` sem `url_externa` (a tabela original não aceita `texto`).
 2. **Funções** — publicar `supabase/functions/estude-gerar-conteudo`, `estude-corrigir-redacao` (com verificação de JWT) e `estude-importar-enem` (sem verificação de JWT; ela exige a chave descartável).
    Opcional: secret `ESTUDE_MODELO` para trocar o modelo (padrão `claude-sonnet-5-5`).
 3. **Questões do ENEM** — no SQL Editor:
@@ -36,8 +44,8 @@ Toda regra que dá XP ou confere resposta roda no banco (`security definer` + ch
      body := jsonb_build_object('ano', 2023, 'chave', '<chave>'),
      headers := '{"Content-Type":"application/json"}'::jsonb,
      timeout_milliseconds := 120000);
-   -- conferir: select ano, count(*) from be_enem_questoes group by ano order by ano;  (≈ 180 por ano)
-   delete from be_import_chave;
+   -- conferir: select ano, count(*) from be_enem_questoes group by ano order by ano;  (≈ 180 por ano, 2.750 no total)
+   -- a chave só vale por 2 horas; depois disso a função recusa sozinha.
    ```
    Alternativa offline: `python3 scripts/montar_enem.py <clone do enem-api> <commit> <saida>` gera lotes SQL.
 4. **Site** — copiar `site/` para a pasta `estudemais/` do repositório do domínio.

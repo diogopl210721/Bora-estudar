@@ -1,6 +1,45 @@
 -- Estude+ — regras do jogo no servidor (XP, streak, liga, revisão espaçada, plano, simulado ENEM)
 -- Tudo security definer com checagem de dono; o front só chama rpc().
-drop function if exists public.be_dominio_turma(uuid);
+
+
+-- Funções internas não podem ser chamadas direto pelo app (API). Em vez de revogar permissões,
+-- cada uma exige: chamada vinda do próprio banco (cron/SQL), da service role, ou de uma rpc do app
+-- que liga a marca be.interno só durante a própria transação.
+create or replace function public.be_exigir_interno() returns void
+language plpgsql stable set search_path = public as $$
+begin
+  if session_user = 'authenticator'
+     and coalesce(current_setting('be.interno', true), '') <> '1'
+     and coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role', '') <> 'service_role' then
+    raise exception 'função interna do Estude+';
+  end if;
+end $$;
+
+create or replace function public.be_modo_interno() returns void
+language plpgsql volatile set search_path = public as $$
+begin
+  perform set_config('be.interno', '1', true);
+end $$;
+
+-- reforça as duas funções que já existiam e recebem um usuário qualquer como parâmetro
+create or replace function public.be_incrementar_uso_ia(p_usuario_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform be_exigir_interno();
+  insert into be_uso_ia (usuario_id, data, quantidade) values (p_usuario_id, current_date, 1)
+  on conflict (usuario_id, data) do update set quantidade = be_uso_ia.quantidade + 1;
+end $$;
+
+create or replace function public.be_materia_acessivel_para(p_usuario uuid, p_materia uuid) returns boolean
+language plpgsql stable security definer set search_path = public as $$
+begin
+  perform be_exigir_interno();
+  return exists (
+    select 1 from be_materias m
+    where m.id = p_materia
+      and (m.usuario_id = p_usuario
+           or m.grupo_id in (select grupo_id from be_grupo_membros where usuario_id = p_usuario)));
+end $$;
 
 -- =========================================================
 -- INTERNAS (não expostas ao app)
@@ -10,6 +49,7 @@ create or replace function public.be_conceder_conquista(p_usuario uuid, p_codigo
 language plpgsql security definer set search_path = public as $$
 declare v_id uuid; v_n int;
 begin
+  perform be_exigir_interno();
   select id into v_id from be_conquistas where codigo = p_codigo;
   if v_id is null then return false; end if;
   insert into be_usuario_conquistas (usuario_id, conquista_id) values (p_usuario, v_id)
@@ -22,6 +62,7 @@ create or replace function public.be_entrar_liga_atual(p_usuario uuid) returns u
 language plpgsql security definer set search_path = public as $$
 declare v_semana date := be_semana_atual(); v_div text; v_liga uuid;
 begin
+  perform be_exigir_interno();
   select lm.liga_id into v_liga
   from be_liga_membros lm join be_ligas l on l.id = lm.liga_id
   where lm.usuario_id = p_usuario and l.semana = v_semana limit 1;
@@ -52,6 +93,7 @@ declare
   v_hoje date := be_hoje();
   v_ult date; v_streak int; v_xp int; v_liga uuid;
 begin
+  perform be_exigir_interno();
   if p_pontos is null or p_pontos <= 0 then
     select xp into v_xp from be_usuarios where id = p_usuario;
     return coalesce(v_xp, 0);
@@ -93,6 +135,7 @@ create or replace function public.be_atualizar_dominio(p_usuario uuid, p_topico 
 returns numeric language plpgsql security definer set search_path = public as $$
 declare v_score numeric;
 begin
+  perform be_exigir_interno();
   if p_topico is null then return null; end if;
   insert into be_dominio (usuario_id, topico_id, acertos, erros, score, atualizado_em)
   values (p_usuario, p_topico, case when p_acertou then 1 else 0 end, case when p_acertou then 0 else 1 end,
@@ -117,6 +160,7 @@ declare
   v_q record; v_acertou boolean; v_xp int := 0; v_ja boolean; v_score numeric;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
 
   select q.id, q.resposta_correta, q.explicacao, q.topico_id, c.materia_id
     into v_q
@@ -157,6 +201,7 @@ declare
   s float8; d float8; v_r float8; t float8; v_int int; v_estado smallint; v_xp int := 0; v_ja boolean;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   if p_nota not between 1 and 4 then raise exception 'nota inválida'; end if;
 
   select id, materia_id into v_card from be_cards where id = p_card;
@@ -228,6 +273,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_u uuid := be_usuario_atual_id(); v_hoje date := be_hoje(); v_novos_hoje int; v_cota int;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
 
   select count(*) into v_novos_hoje from be_card_revisoes cr
   where cr.usuario_id = v_u and cr.repeticoes > 0
@@ -277,6 +323,7 @@ declare
   v_tid uuid; v_tnome text; v_primeira boolean;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   select id, nome, data_prova into v_m from be_materias where id = p_materia;
   if v_m.id is null or not be_materia_acessivel_para(v_u, p_materia) then raise exception 'matéria não encontrada'; end if;
   if v_m.data_prova is null then raise exception 'defina a data da prova para montar o plano'; end if;
@@ -367,6 +414,7 @@ declare
   v_t record; v_xp int := 0; v_completo boolean := false; v_bonus int := 0;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   select * into v_t from be_plano_tarefas where id = p_tarefa and usuario_id = v_u;
   if v_t.id is null then raise exception 'tarefa não encontrada'; end if;
 
@@ -401,6 +449,7 @@ returns json language plpgsql security definer set search_path = public as $$
 declare v_u uuid := be_usuario_atual_id(); v_ids uuid[]; v_sim uuid; v_qtd int := least(45, greatest(5, coalesce(p_qtd, 10)));
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   if p_area is not null and p_area not in ('linguagens','ciencias-humanas','ciencias-natureza','matematica') then
     raise exception 'área inválida';
   end if;
@@ -438,6 +487,7 @@ returns json language plpgsql security definer set search_path = public as $$
 declare v_u uuid := be_usuario_atual_id(); v_s record; v_acertos int; v_xp int; v_res json;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   select * into v_s from be_simulados where id = p_simulado and usuario_id = v_u for update;
   if v_s.id is null then raise exception 'simulado não encontrado'; end if;
   if v_s.finalizado_em is not null then raise exception 'esse simulado já foi entregue'; end if;
@@ -475,6 +525,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_u uuid := be_usuario_atual_id(); v_liga uuid; v_l record;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   v_liga := be_entrar_liga_atual(v_u);
   select * into v_l from be_ligas where id = v_liga;
   return json_build_object(
@@ -503,6 +554,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_l record; v_n int; v_fechadas int := 0;
   ordem constant text[] := array['bronze','prata','ouro','diamante'];
 begin
+  perform be_exigir_interno();
   for v_l in select * from be_ligas where not fechada and semana < be_semana_atual() loop
     select count(*) into v_n from be_liga_membros where liga_id = v_l.id;
 
@@ -542,6 +594,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_u uuid := be_usuario_atual_id(); v_hoje date := be_hoje(); v_usr record; v_streak int; v_liga json;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
 
   -- quem entrou numa turma (ou ainda não tinha plano) ganha o plano das matérias com prova marcada
   perform be_gerar_plano(m.id)
@@ -599,6 +652,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_u uuid := be_usuario_atual_id(); v_hoje date := be_hoje(); v_g record;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   if not exists (select 1 from be_grupo_membros where grupo_id = p_grupo and usuario_id = v_u and papel_no_grupo = 'admin') then
     raise exception 'só o admin da turma vê esse painel';
   end if;
@@ -646,6 +700,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_u uuid := be_usuario_atual_id();
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   return coalesce((
     select json_agg(json_build_object('id', g.id, 'nome', g.nome, 'materia', g.materia, 'tipo', g.tipo,
              'codigo', g.codigo, 'papel', gm.papel_no_grupo,
@@ -661,6 +716,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_u uuid := be_usuario_atual_id(); v_hoje date := be_hoje(); v_m record; v_res json;
 begin
   if v_u is null then raise exception 'faça login de novo'; end if;
+  perform be_modo_interno();
   select * into v_m from be_materias where id = p_materia;
   if v_m.id is null or not be_materia_acessivel_para(v_u, p_materia) then raise exception 'matéria não encontrada'; end if;
 
@@ -669,7 +725,7 @@ begin
                                  'nota_real', v_m.nota_real, 'grupo_id', v_m.grupo_id, 'dono', v_m.usuario_id = v_u,
                                  'dias', v_m.data_prova - v_hoje,
                                  'grupo_nome', (select nome from be_grupos where id = v_m.grupo_id)),
-    'materiais', coalesce((select json_agg(json_build_object('id', mt.id, 'tipo', mt.tipo, 'created_at', mt.created_at,
+    'materiais', coalesce((select json_agg(json_build_object('id', mt.id, 'tipo', mt.tipo, 'created_at', mt.created_at, 'tem_url', mt.url_externa is not null,
                                    'meu', mt.importado_por = v_u) order by mt.created_at desc)
                            from be_materiais mt where mt.materia_id = p_materia), '[]'::json),
     'resumo', (select conteudo from be_conteudo_gerado where materia_id = p_materia and tipo = 'resumo' order by created_at desc limit 1),
@@ -707,49 +763,9 @@ begin
   return v_res;
 end $$;
 
--- =========================================================
--- PERMISSÕES
--- =========================================================
-revoke execute on function public.be_conceder_conquista(uuid, text) from public, anon, authenticated;
-revoke execute on function public.be_entrar_liga_atual(uuid) from public, anon, authenticated;
-revoke execute on function public.be_ganhar_xp(uuid, text, int, uuid) from public, anon, authenticated;
-revoke execute on function public.be_atualizar_dominio(uuid, uuid, boolean) from public, anon, authenticated;
-revoke execute on function public.be_fechar_ligas() from public, anon, authenticated;
-grant execute on function public.be_conceder_conquista(uuid, text) to service_role;
-grant execute on function public.be_ganhar_xp(uuid, text, int, uuid) to service_role;
-grant execute on function public.be_fechar_ligas() to service_role;
-
-revoke execute on function public.be_responder_pergunta(uuid, text, int) from public, anon;
-revoke execute on function public.be_revisar_card(uuid, int) from public, anon;
-revoke execute on function public.be_cards_para_revisar(uuid, int) from public, anon;
-revoke execute on function public.be_gerar_plano(uuid) from public, anon;
-revoke execute on function public.be_marcar_tarefa(uuid, boolean) from public, anon;
-revoke execute on function public.be_iniciar_simulado(text, int, text) from public, anon;
-revoke execute on function public.be_finalizar_simulado(uuid, jsonb, int) from public, anon;
-revoke execute on function public.be_minha_liga() from public, anon;
-revoke execute on function public.be_resumo_hoje() from public, anon;
-revoke execute on function public.be_painel_turma(uuid) from public, anon;
-revoke execute on function public.be_meus_grupos() from public, anon;
-revoke execute on function public.be_materia_detalhe(uuid) from public, anon;
-grant execute on function public.be_responder_pergunta(uuid, text, int) to authenticated;
-grant execute on function public.be_revisar_card(uuid, int) to authenticated;
-grant execute on function public.be_cards_para_revisar(uuid, int) to authenticated;
-grant execute on function public.be_gerar_plano(uuid) to authenticated, service_role;
-grant execute on function public.be_marcar_tarefa(uuid, boolean) to authenticated;
-grant execute on function public.be_iniciar_simulado(text, int, text) to authenticated;
-grant execute on function public.be_finalizar_simulado(uuid, jsonb, int) to authenticated;
-grant execute on function public.be_minha_liga() to authenticated;
-grant execute on function public.be_resumo_hoje() to authenticated;
-grant execute on function public.be_painel_turma(uuid) to authenticated;
-grant execute on function public.be_meus_grupos() to authenticated;
-grant execute on function public.be_materia_detalhe(uuid) to authenticated;
-
--- fecha as ligas toda segunda 00:05 (Brasília) = 03:05 UTC
+-- fecha as ligas toda segunda 00:05 (horário de Brasília = 03:05 UTC); cron.schedule com nome atualiza se já existir
 do $$ begin
   if exists (select 1 from pg_namespace where nspname = 'cron') then
-    if exists (select 1 from cron.job where jobname = 'be-fechar-ligas') then
-      perform cron.unschedule('be-fechar-ligas');
-    end if;
     perform cron.schedule('be-fechar-ligas', '5 3 * * 1', 'select public.be_fechar_ligas();');
   end if;
 end $$;

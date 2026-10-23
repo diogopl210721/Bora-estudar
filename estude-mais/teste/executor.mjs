@@ -1,7 +1,9 @@
 // Executa as consultas do "supabase de mentira" num Postgres local, com RLS de verdade.
 import pg from 'pg';
 
-export const pool = new pg.Pool({ host: '/tmp', port: 54329, user: 'postgres', database: 'estude', max: 8 });
+// como a API do Supabase: conecta como "authenticator" e troca para o papel do token
+export const pool = new pg.Pool({ host: '/tmp', port: 54329, user: 'authenticator', database: 'estude', max: 8 });
+export const poolAdmin = new pg.Pool({ host: '/tmp', port: 54329, user: 'postgres', database: 'estude', max: 2 });
 
 const ID = /^[a-z_][a-z0-9_]*$/;
 function ident(x) {
@@ -21,6 +23,9 @@ async function comPapel(sub, fn) {
     if (sub) {
       await c.query('set local role authenticated');
       await c.query("select set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claims', $2, true)", [sub, JSON.stringify({ sub, role: 'authenticated' })]);
+    } else {
+      await c.query('set local role service_role');
+      await c.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ role: 'service_role' })]);
     }
     const r = await fn(c);
     await c.query('commit');

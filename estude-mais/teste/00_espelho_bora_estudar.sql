@@ -99,3 +99,7 @@ create policy "colegas veem tentativas pro ranking" on public.be_tentativas for 
 create policy "ver meu uso de ia" on public.be_uso_ia for select using (usuario_id = public.be_usuario_atual_id());
 create policy "desbloquear conquista" on public.be_usuario_conquistas for insert with check (usuario_id = public.be_usuario_atual_id());
 create policy "ver minhas conquistas" on public.be_usuario_conquistas for select using (usuario_id = public.be_usuario_atual_id());
+
+-- como no Supabase: a API conecta como "authenticator" e troca para anon/authenticated/service_role
+do $$ begin create role authenticator login noinherit; exception when duplicate_object then null; end $$;
+grant anon, authenticated, service_role to authenticator;

@@ -38,3 +38,10 @@ export function caminhosDoAno(detalhesAno: any): string[] {
     `public/${ano}/questions/${q.index}${q.language ? "-" + q.language : ""}/details.json`
   );
 }
+
+// O repositório tem algumas questões repetidas no mesmo ano (mesmo número e idioma): fica a última.
+export function semRepetidas(linhas: LinhaEnem[]): LinhaEnem[] {
+  const unicas = new Map<string, LinhaEnem>();
+  for (const l of linhas) unicas.set(`${l.ano}|${l.numero}|${l.idioma ?? ""}`, l);
+  return Array.from(unicas.values());
+}

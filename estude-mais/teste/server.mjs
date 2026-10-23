@@ -3,12 +3,12 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { pool, executar, chamarRpc, clienteAdmin } from './executor.mjs';
+import { poolAdmin as pool, executar, chamarRpc, clienteAdmin } from './executor.mjs';
 import { extrairJson, normalizarGerado, persistirConteudo } from '../supabase/functions/estude-gerar-conteudo/nucleo.ts';
 import { normalizarCorrecao } from '../supabase/functions/estude-corrigir-redacao/nucleo.ts';
 
 const SITE = path.resolve(import.meta.dirname, '../site');
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 const senhas = new Map();
 
 const IA_CONTEUDO = '```json\n' + JSON.stringify({
@@ -71,6 +71,7 @@ async function gerarConteudo(req, res) {
   const { data: uso } = await admin.from('be_uso_ia').select('quantidade').eq('usuario_id', uid).eq('data', hoje).maybeSingle();
   const usado = uso ? uso.quantidade : 0;
   if (usado >= 7) return json(res, { error: 'Sua energia de hoje acabou (7 gerações por dia). Ela recarrega amanhã!' }, 429);
+  await new Promise((ok) => setTimeout(ok, 2600)); // a IA de verdade leva uns 30 s; aqui só o bastante pra ver a tela de geração
   const gerado = normalizarGerado(extrairJson(IA_CONTEUDO));
   const salvo = await persistirConteudo(admin, { usuarioId: uid, materiaId: corpo.materia_id, tipoFonte: corpo.tipo_fonte, url: null, gerado });
   await admin.rpc('be_incrementar_uso_ia', { p_usuario_id: uid });

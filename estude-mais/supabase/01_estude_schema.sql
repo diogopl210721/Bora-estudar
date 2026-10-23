@@ -22,11 +22,6 @@ do $$ begin
     check (divisao in ('bronze','prata','ouro','diamante'));
 exception when duplicate_object then null; end $$;
 
--- material colado como texto passa a ser aceito
-alter table public.be_materiais drop constraint if exists be_materiais_tipo_check;
-alter table public.be_materiais add constraint be_materiais_tipo_check
-  check (tipo in ('foto','pdf','youtube','link','texto'));
-
 -- ---------- acesso a uma matéria (dono ou membro do grupo dela) ----------
 create or replace function public.be_materia_acessivel(p_materia uuid) returns boolean
 language sql stable security definer set search_path = public as $$
@@ -217,64 +212,44 @@ alter table public.be_enem_questoes enable row level security;
 alter table public.be_simulados enable row level security;
 alter table public.be_redacoes enable row level security;
 
-drop policy if exists "ver topicos" on public.be_topicos;
 create policy "ver topicos" on public.be_topicos for select to authenticated
   using (public.be_materia_acessivel(materia_id));
-drop policy if exists "criar topico" on public.be_topicos;
 create policy "criar topico" on public.be_topicos for insert to authenticated
   with check (public.be_materia_acessivel(materia_id));
 
-drop policy if exists "ver meu dominio" on public.be_dominio;
 create policy "ver meu dominio" on public.be_dominio for select to authenticated
   using (usuario_id = public.be_usuario_atual_id());
 
-drop policy if exists "ver cards" on public.be_cards;
 create policy "ver cards" on public.be_cards for select to authenticated
   using (public.be_materia_acessivel(materia_id));
-drop policy if exists "criar card" on public.be_cards;
 create policy "criar card" on public.be_cards for insert to authenticated
   with check (public.be_materia_acessivel(materia_id) and criado_por = public.be_usuario_atual_id() and origem = 'manual');
-drop policy if exists "editar meu card" on public.be_cards;
 create policy "editar meu card" on public.be_cards for update to authenticated
   using (criado_por = public.be_usuario_atual_id());
-drop policy if exists "excluir card" on public.be_cards;
 create policy "excluir card" on public.be_cards for delete to authenticated
   using (criado_por = public.be_usuario_atual_id()
          or materia_id in (select id from public.be_materias where usuario_id = public.be_usuario_atual_id()));
 
-drop policy if exists "ver minhas revisoes" on public.be_card_revisoes;
 create policy "ver minhas revisoes" on public.be_card_revisoes for select to authenticated
   using (usuario_id = public.be_usuario_atual_id());
 
-drop policy if exists "ver meu plano" on public.be_plano_tarefas;
 create policy "ver meu plano" on public.be_plano_tarefas for select to authenticated
   using (usuario_id = public.be_usuario_atual_id());
-drop policy if exists "criar tarefa" on public.be_plano_tarefas;
 create policy "criar tarefa" on public.be_plano_tarefas for insert to authenticated
   with check (usuario_id = public.be_usuario_atual_id() and public.be_materia_acessivel(materia_id));
-drop policy if exists "editar tarefa" on public.be_plano_tarefas;
 create policy "editar tarefa" on public.be_plano_tarefas for update to authenticated
   using (usuario_id = public.be_usuario_atual_id())
   with check (usuario_id = public.be_usuario_atual_id());
-drop policy if exists "excluir tarefa" on public.be_plano_tarefas;
 create policy "excluir tarefa" on public.be_plano_tarefas for delete to authenticated
   using (usuario_id = public.be_usuario_atual_id());
 
-drop policy if exists "ver meu xp" on public.be_xp_eventos;
 create policy "ver meu xp" on public.be_xp_eventos for select to authenticated
   using (usuario_id = public.be_usuario_atual_id());
 
-drop policy if exists "ver meus simulados" on public.be_simulados;
 create policy "ver meus simulados" on public.be_simulados for select to authenticated
   using (usuario_id = public.be_usuario_atual_id());
 
-drop policy if exists "ver minhas redacoes" on public.be_redacoes;
 create policy "ver minhas redacoes" on public.be_redacoes for select to authenticated
   using (usuario_id = public.be_usuario_atual_id());
 -- be_ligas, be_liga_membros e be_enem_questoes: sem políticas — só via funções.
 
--- energia de IA: só a função do servidor incrementa
-revoke execute on function public.be_incrementar_uso_ia(uuid) from public, anon, authenticated;
-grant execute on function public.be_incrementar_uso_ia(uuid) to service_role;
-revoke execute on function public.be_materia_acessivel_para(uuid, uuid) from public, anon, authenticated;
-grant execute on function public.be_materia_acessivel_para(uuid, uuid) to service_role;

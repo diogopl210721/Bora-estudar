@@ -17,7 +17,29 @@ TEXTO = ('A célula é a unidade básica da vida. Na mitose, uma célula se divi
 REDACAO = ('A desinformação nas redes sociais é um desafio crescente no Brasil. ' * 6 + '\n\n') * 3
 
 
+AUTO = '''
+window.addEventListener('DOMContentLoaded', () => {
+  new MutationObserver(() => {
+    const d = document.getElementById('dlg');
+    if (d && !d.hidden && !d.dataset.lido) {
+      d.dataset.lido = '1';
+      window.__registrarDialogo(document.getElementById('dlg-texto').textContent);
+      setTimeout(() => { document.getElementById('dlg-ok').click(); delete d.dataset.lido; }, 150);
+    }
+    const n = document.getElementById('fx-nivel');
+    if (n && !n.hidden && !n.dataset.lido && !window.__manterNivel) {
+      n.dataset.lido = '1';
+      window.__registrarDialogo('nível ' + document.getElementById('nivel-n').textContent);
+      setTimeout(() => { Fx.fecharNivel(); delete n.dataset.lido; }, 700);
+    }
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+});
+'''
+
+
 def preparar(ctx):
+    ctx.expose_binding('__registrarDialogo', lambda fonte, msg: dialogos.append(msg))
+    ctx.add_init_script(AUTO)
     ctx.route(re.compile(r'https://cdn\.jsdelivr\.net/npm/@supabase.*'), lambda r: r.fulfill(status=200, content_type='text/javascript', body=MOCK))
     ctx.route(re.compile(r'https://fonts\.(googleapis|gstatic)\.com/.*'), lambda r: r.abort())
     ctx.route(re.compile(r'https://(enem\.dev|raw\.githubusercontent\.com)/.*'), lambda r: r.fulfill(status=200, content_type='image/png', body=PNG))
@@ -41,9 +63,10 @@ def nova_pagina(ctx):
     return p
 
 
-def shot(p, nome):
+def shot(p, nome, espera=1100):
+    p.wait_for_timeout(espera)
     p.evaluate("""() => { const s = document.createElement('style'); s.id='shotcss';
-      s.textContent = '.phone{height:auto!important;overflow:visible!important} .screen.active{position:relative!important;overflow:visible!important} .sheet{min-height:0!important} .toast{display:none}';
+      s.textContent = '.phone{height:auto!important;overflow:visible!important} .screen.active{position:relative!important;overflow:visible!important} .sheet{min-height:0!important} .toast,.xp-voa,#fx-canvas,.fx-visto{display:none!important}';
       document.head.appendChild(s); }""")
     p.screenshot(path=os.path.join(SHOTS, nome + '.png'), full_page=True)
     p.evaluate("() => document.getElementById('shotcss').remove()")
@@ -93,10 +116,14 @@ def gerar_materia(p, nome, dias):
     p.click('.src-tab[data-fonte=texto]')
     p.fill('#input-texto', TEXTO)
     p.click('#btn-criar-jornada')
+    if nome == 'Biologia':
+        p.wait_for_selector('#fx-gerando:not([hidden])')
+        p.wait_for_timeout(1300)
+        p.screenshot(path=os.path.join(SHOTS, '02b-gerando.png'))
     tela(p, 'pronto', 15000)
 
 
-def responder_quiz(p, quantas=None, escolher='first'):
+def responder_quiz(p, quantas=None, escolher='first', foto=None):
     tela(p, 'quiz')
     n = 0
     while True:
@@ -105,6 +132,9 @@ def responder_quiz(p, quantas=None, escolher='first'):
         (opcoes.first if escolher == 'first' else opcoes.nth(1)).click()
         p.wait_for_selector('#quiz-feedback:not([hidden])')
         n += 1
+        if foto and n <= 2:
+            p.wait_for_timeout(900)
+            p.screenshot(path=os.path.join(SHOTS, f'{foto}-{n}.png'))
         texto = p.inner_text('#quiz-next-btn')
         p.click('#quiz-next-btn')
         if 'resultado' in texto.lower():
@@ -116,7 +146,8 @@ def responder_quiz(p, quantas=None, escolher='first'):
 
 def principal(pw):
     nav = pw.chromium.launch()
-    ctx = nav.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, locale='pt-BR', timezone_id='America/Sao_Paulo')
+    ctx = nav.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, locale='pt-BR', timezone_id='America/Sao_Paulo',
+                          reduced_motion=os.environ.get('MOVIMENTO', 'no-preference'))
     preparar(ctx)
     p = nova_pagina(ctx)
     PAG.append(p)
@@ -135,9 +166,9 @@ def principal(pw):
     p.click('.upload-cta')
     gerar_materia(p, 'Biologia', 12)
     shot(p, '03-pronto')
-    assert p.inner_text('#pronto-cards') == '5', p.inner_text('#pronto-cards')
+    p.wait_for_function("() => document.getElementById('pronto-cards').textContent === '5'", timeout=4000)
     p.click('text=Começar pelo quiz')
-    responder_quiz(p)
+    responder_quiz(p, foto='03b-quiz-resposta')
     tela(p, 'quiz-fim')
     shot(p, '04-quiz-fim')
     p.click('text=Voltar pra matéria')
@@ -184,17 +215,19 @@ def principal(pw):
     p.wait_for_function("() => Number(document.getElementById('home-cards-n').textContent) > 0")
     p.click('#home-revisao')
     tela(p, 'cards')
-    shot(p, '09-card-frente')
+    shot(p, '09-card-frente', 600)
     p.click('#cards-virar')
     p.wait_for_selector('#cards-notas:not([hidden])')
-    shot(p, '10-card-verso')
+    shot(p, '10-card-verso', 800)
+    pronto_ou_proximo = "() => document.querySelector('#screen-cards-fim.active') || !document.getElementById('cards-virar').hidden"
     p.click('.grade.g1')
+    p.wait_for_function(pronto_ou_proximo)
     for _ in range(12):
         if p.locator('#screen-cards-fim.active').count():
             break
         p.click('#cards-virar')
         p.click('.grade.g3')
-        p.wait_for_timeout(150)
+        p.wait_for_function(pronto_ou_proximo)
     tela(p, 'cards-fim')
     shot(p, '11-cards-fim')
 
@@ -206,7 +239,8 @@ def principal(pw):
     p.click('#btn-iniciar-simulado')
     tela(p, 'simulado')
     p.wait_for_selector('#sim-opcoes .option')
-    shot(p, '13-simulado')
+    p.locator('#sim-opcoes .option').nth(2).click()
+    shot(p, '13-simulado', 700)
     for i in range(10):
         p.locator('#sim-opcoes .option').nth(i % 5).click()
         if i < 9:
@@ -227,8 +261,8 @@ def principal(pw):
     p.dispatch_event('#redacao-texto', 'input')
     p.click('#btn-corrigir')
     p.wait_for_selector('#redacao-resultado:not([hidden]) .score-big')
-    shot(p, '16-redacao')
-    assert p.inner_text('#redacao-resultado .score-big') == '720', p.inner_text('#redacao-resultado .score-big')
+    p.wait_for_function("() => document.querySelector('#redacao-resultado .score-big').textContent.trim() === '720'", timeout=5000)
+    shot(p, '16-redacao', 1000)
 
     # liga e perfil
     p.click('.navbar [data-s=liga]')
@@ -255,7 +289,8 @@ def principal(pw):
     p.fill('#input-materia-grupo', 'Química')
     p.click('#btn-criar-grupo')
     p.wait_for_selector('.group-card')
-    codigo = re.search(r'Código: (\w+)', dialogos[-1]).group(1)
+    p.wait_for_function("() => document.getElementById('dlg').hidden")
+    codigo = re.search(r'Código: (\w+)', [d for d in dialogos if 'Código' in d][-1]).group(1)
     p.click('text=abrir painel')
     tela(p, 'painel')
     p.click('#screen-painel .link-btn')
@@ -296,6 +331,39 @@ def principal(pw):
     sem_carregando(p, '#home-tarefas')
     p.wait_for_timeout(500)
     p.screenshot(path=os.path.join(SHOTS, '21-desktop-hoje.png'))
+    p.evaluate('verEnem()')
+    p.wait_for_timeout(900)
+    p.screenshot(path=os.path.join(SHOTS, '21b-desktop-enem.png'))
+
+    # modo lousa (escuro)
+    p.set_viewport_size({'width': 390, 'height': 844})
+    p.evaluate("escolherTema('lousa')")
+    p.evaluate('verHoje()')
+    sem_carregando(p, '#home-tarefas')
+    shot(p, '22-lousa-hoje')
+    p.click('.exam-chip:has-text("Química")')
+    tela(p, 'materia')
+    p.click('#mat-menu [data-tipo=mapa]')
+    shot(p, '23-lousa-mapa')
+    p.click('#mat-menu [data-tipo=quiz]')
+    p.click('#mat-quiz .btn.coral')
+    tela(p, 'quiz')
+    p.locator('#quiz-opcoes .option').first.click()
+    p.wait_for_selector('#quiz-feedback:not([hidden])')
+    p.wait_for_timeout(900)
+    p.screenshot(path=os.path.join(SHOTS, '24-lousa-quiz.png'))
+    p.evaluate("escolherTema('caderno')")
+
+    # efeitos em destaque
+    p.evaluate("window.__manterNivel = true; Fx.nivel(4)")
+    p.wait_for_timeout(1300)
+    p.screenshot(path=os.path.join(SHOTS, '25-nivel.png'))
+    p.evaluate("Fx.fecharNivel(); window.__manterNivel = false; verHoje()")
+    sem_carregando(p, '#home-tarefas')
+    p.wait_for_timeout(800)
+    p.evaluate("Fx.visto('dia completo')")
+    p.wait_for_timeout(700)
+    p.screenshot(path=os.path.join(SHOTS, '26-visto.png'))
     nav.close()
 
 

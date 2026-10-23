@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { caminhosDoAno, montarQuestao } from "./nucleo.ts";
+import { caminhosDoAno, montarQuestao, semRepetidas } from "./nucleo.ts";
 
 // Importação única das questões oficiais do ENEM (repositório aberto yunger7/enem-api, fixado num commit).
 // Chamada pelo próprio banco (pg_net), um ano por vez, com uma chave descartável guardada em be_import_chave.
@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     if (!ok) return resposta({ error: "chave inválida" }, 403);
 
     const caminhos = caminhosDoAno(await buscarJson(`public/${ano}/details.json`));
-    const linhas = [];
+    const linhas: ReturnType<typeof montarQuestao>[] = [];
     let puladas = 0;
     for (let i = 0; i < caminhos.length; i += 12) {
       const lote = await Promise.all(caminhos.slice(i, i + 12).map((c) => buscarJson(c).catch(() => null)));
@@ -36,9 +36,9 @@ Deno.serve(async (req) => {
         if (linha) linhas.push(linha); else puladas++;
       }
     }
-    const { data: n, error } = await admin.rpc("be_enem_upsert", { p_chave: chave, p_linhas: linhas });
+    const { data: n, error } = await admin.rpc("be_enem_upsert", { p_chave: chave, p_linhas: semRepetidas(linhas as any) });
     if (error) return resposta({ error: error.message }, 500);
-    return resposta({ ano, importadas: n, puladas });
+    return resposta({ ano, importadas: n, puladas, repetidas: linhas.length - semRepetidas(linhas as any).length });
   } catch (err) {
     return resposta({ error: String(err) }, 500);
   }
