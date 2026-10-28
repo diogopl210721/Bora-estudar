@@ -2,7 +2,7 @@
 Uso: python3 scripts/paginas_publicas.py  (escreve em site/)"""
 import os
 SITE = os.path.join(os.path.dirname(__file__), '..', 'site')
-V = '11'
+V = '12'
 
 def cabeca(titulo, descricao):
     return f'''<!DOCTYPE html>
