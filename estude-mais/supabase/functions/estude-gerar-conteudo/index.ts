@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { extrairJson, normalizarGerado, persistirConteudo } from "./nucleo.ts";
+import { mensagemFonte, textoDoSite, transcricaoYoutube } from "./fontes.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const MODELO = Deno.env.get("ESTUDE_MODELO") || "claude-sonnet-5-5";
@@ -8,6 +9,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const LIMITE_DIARIO = 7;
+const GEMINI = { chave: Deno.env.get("GEMINI_API_KEY") || "", modelo: Deno.env.get("GEMINI_MODELO") || "" };
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +18,7 @@ const CORS = {
 const resposta = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
-const PROMPT = `Você é o motor de estudo do app Estude+, para estudantes brasileiros do fundamental ao ENEM e à faculdade.
+const PROMPT = `Você é o motor de estudo do app EstudeUp, para estudantes brasileiros do fundamental ao ENEM e à faculdade.
 Transforme o material enviado em conteúdo de estudo em português do Brasil.
 Responda SOMENTE com um JSON válido, sem texto antes ou depois, sem markdown, exatamente neste formato:
 {
@@ -47,8 +49,8 @@ Deno.serve(async (req) => {
     if (!jwt) return resposta({ error: "não autenticado" }, 401);
     if (!ANTHROPIC_API_KEY) return resposta({ error: "ANTHROPIC_API_KEY não configurada nas secrets da função" }, 500);
 
-    const { materia_id, tipo_fonte, imagem_base64, pdf_base64, url, texto } = await req.json();
-    if (!materia_id || !tipo_fonte) return resposta({ error: "materia_id e tipo_fonte são obrigatórios" }, 400);
+    const { materia_id, tipo_fonte, imagem_base64, pdf_base64, url, texto, apenas_testar_fonte } = await req.json();
+    if (!tipo_fonte || (!materia_id && !apenas_testar_fonte)) return resposta({ error: "materia_id e tipo_fonte são obrigatórios" }, 400);
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const comoUsuario = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: `Bearer ${jwt}` } } });
@@ -57,6 +59,16 @@ Deno.serve(async (req) => {
     if (authErr || !auth.user) return resposta({ error: "sessão inválida, faça login de novo" }, 401);
     const { data: usuario } = await admin.from("be_usuarios").select("id").eq("auth_user_id", auth.user.id).single();
     if (!usuario) return resposta({ error: "usuário não encontrado" }, 401);
+
+    // só confere se o vídeo ou o site dá pra ler (sem IA e sem gastar energia)
+    if (apenas_testar_fonte) {
+      if (tipo_fonte !== "youtube" && tipo_fonte !== "link") return resposta({ error: "só dá pra testar YouTube e site" }, 400);
+      const r = tipo_fonte === "youtube" ? await transcricaoYoutube(url, GEMINI) : await textoDoSite(url);
+      return resposta({
+        ok: !!r.texto, motivo: r.motivo, detalhe: r.detalhe || null, caracteres: r.texto?.length || 0,
+        inicio: r.texto ? r.texto.slice(0, 160) : null, mensagem: r.texto ? null : mensagemFonte(tipo_fonte, r),
+      });
+    }
 
     const { data: acesso } = await admin.rpc("be_materia_acessivel_para", { p_usuario: usuario.id, p_materia: materia_id });
     if (!acesso) return resposta({ error: "matéria não encontrada" }, 404);
@@ -94,15 +106,21 @@ Deno.serve(async (req) => {
       blocos.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdf_base64 } });
       blocos.push({ type: "text", text: "PDF de material de estudo. Leia e gere o conteúdo pedido." });
     } else if (tipo_fonte === "youtube") {
-      if (!url) return resposta({ error: "faltou o link do vídeo" }, 400);
-      const transcricao = await transcricaoYoutube(url);
-      if (!transcricao) return resposta({ error: "Não consegui puxar a transcrição desse vídeo. Tenta outro vídeo ou usa foto/PDF." }, 422);
-      blocos.push({ type: "text", text: `Transcrição de uma aula do YouTube:\n\n${transcricao}\n\nGere o conteúdo pedido.` });
+      const colada = typeof texto === "string" ? texto.trim() : "";
+      if (colada.length >= 80) {
+        // o aluno colou a transcrição do vídeo (Mostrar transcrição no YouTube)
+        blocos.push({ type: "text", text: `Transcrição de uma aula do YouTube, colada pelo aluno${url ? ` (${String(url).slice(0, 200)})` : ""}:\n\n${colada.slice(0, 20000)}\n\nGere o conteúdo pedido.` });
+      } else {
+        if (!url) return resposta({ error: "faltou o link do vídeo" }, 400);
+        const r = await transcricaoYoutube(url, GEMINI);
+        if (!r.texto) return resposta({ error: mensagemFonte("youtube", r), motivo: r.motivo, detalhe: r.detalhe }, 422);
+        blocos.push({ type: "text", text: `Transcrição de uma aula do YouTube:\n\n${r.texto}\n\nGere o conteúdo pedido.` });
+      }
     } else if (tipo_fonte === "link") {
       if (!url) return resposta({ error: "faltou o link" }, 400);
-      const conteudo = await textoDoSite(url);
-      if (!conteudo) return resposta({ error: "Não consegui ler esse site." }, 422);
-      blocos.push({ type: "text", text: `Conteúdo de uma página de estudo:\n\n${conteudo}\n\nGere o conteúdo pedido.` });
+      const r = await textoDoSite(url);
+      if (!r.texto) return resposta({ error: mensagemFonte("link", r), motivo: r.motivo, detalhe: r.detalhe }, 422);
+      blocos.push({ type: "text", text: `Conteúdo de uma página de estudo:\n\n${r.texto}\n\nGere o conteúdo pedido.` });
     } else if (tipo_fonte === "texto") {
       const t = typeof texto === "string" ? texto.trim() : "";
       if (t.length < 80) return resposta({ error: "cola um texto um pouco maior (pelo menos 80 caracteres)" }, 400);
@@ -154,32 +172,3 @@ Deno.serve(async (req) => {
     return resposta({ error: "erro inesperado", detalhe: String(err) }, 500);
   }
 });
-
-async function transcricaoYoutube(url: string): Promise<string | null> {
-  try {
-    const id = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/)?.[1];
-    if (!id) return null;
-    const html = await (await fetch(`https://www.youtube.com/watch?v=${id}`, { headers: { "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8" } })).text();
-    const m = html.match(/"captionTracks":(\[.*?\])/);
-    if (!m) return null;
-    const trilhas: any[] = JSON.parse(m[1].replace(/\\u0026/g, "&"));
-    const t = trilhas.find((x) => (x.languageCode || "").startsWith("pt")) || trilhas.find((x) => (x.languageCode || "").startsWith("en")) || trilhas[0];
-    if (!t?.baseUrl) return null;
-    const xml = await (await fetch(t.baseUrl)).text();
-    const limpo = xml.replace(/<[^>]+>/g, " ").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
-    return limpo.length > 20 ? limpo.slice(0, 14000) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function textoDoSite(url: string): Promise<string | null> {
-  try {
-    const html = await (await fetch(url)).text();
-    const t = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    return t ? t.slice(0, 12000) : null;
-  } catch {
-    return null;
-  }
-}

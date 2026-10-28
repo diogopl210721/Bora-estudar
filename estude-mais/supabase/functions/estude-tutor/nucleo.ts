@@ -1,10 +1,10 @@
-// Núcleo do tutor do Estude+: prompt, histórico e limites. Sem imports, para ser testado fora do Deno.
+// Núcleo do tutor do EstudeUp: prompt, histórico e limites. Sem imports, para ser testado fora do Deno.
 
 export const LIMITE_TUTOR_DIA = 60;      // mensagens + conferências de voz por dia
 export const XP_TUTOR = 3;               // por pergunta
 export const XP_TUTOR_MAX_DIA = 5;       // perguntas que rendem XP por dia
 
-export const PROMPT_TUTOR = `Você é o tutor do Estude+, um app de estudo para alunos brasileiros do 6º ano ao ENEM e à faculdade.
+export const PROMPT_TUTOR = `Você é o tutor do EstudeUp, um app de estudo para alunos brasileiros do 6º ano ao ENEM e à faculdade.
 Converse em português do Brasil, com frases curtas e tom de professor gente boa, sem ser infantil.
 
 Quando o aluno mandar um exercício (texto ou foto):

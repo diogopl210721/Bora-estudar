@@ -1,4 +1,4 @@
--- Estude+ — conta do criador (master).
+-- EstudeUp — conta do criador (master).
 -- Quem está em be_criadores não tem limite de IA, tutor, publicação nem ritmo de mensagem, pode criar turma ou grupo,
 -- vê os números gerais e modera a biblioteca e as salas (liberar, ocultar, silenciar por uns dias).
 -- A marca fica numa tabela separada, sem acesso pelo app: ninguém consegue se promover sozinho.
@@ -86,7 +86,7 @@ do $$ begin
   end if;
 end $$;
 
--- autor em público: o criador aparece com o selo "equipe Estude+"
+-- autor em público: o criador aparece com o selo "equipe EstudeUp"
 create or replace function public.be_autor_json(p_usuario uuid) returns json
 language sql stable security definer set search_path = public as $$
   select json_build_object('id', u.id, 'nome', be_nome_publico(u.nome), 'iniciais', be_iniciais(u.nome),
@@ -234,7 +234,7 @@ begin
   if p_acao not in ('liberar', 'ocultar') then raise exception 'ação inválida'; end if;
   if p_tipo = 'resumo' then
     update be_resumos set status = case when p_acao = 'liberar' then 'publicado' else 'oculto' end,
-                          motivo_moderacao = case when p_acao = 'liberar' then null else 'revisado pela equipe do Estude+' end
+                          motivo_moderacao = case when p_acao = 'liberar' then null else 'revisado pela equipe do EstudeUp' end
     where id = p_alvo;
   else
     update be_sala_mensagens set oculta = (p_acao = 'ocultar') where id = p_alvo;

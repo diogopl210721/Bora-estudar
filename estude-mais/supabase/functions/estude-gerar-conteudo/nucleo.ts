@@ -1,4 +1,4 @@
-// Núcleo do Estude+: valida o JSON da IA e grava tudo no banco.
+// Núcleo do EstudeUp: valida o JSON da IA e grava tudo no banco.
 // Sem imports — recebe o cliente Supabase (service role) pronto, para poder ser testado fora do Deno.
 
 export type Pergunta = {

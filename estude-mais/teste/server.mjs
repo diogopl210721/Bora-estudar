@@ -13,7 +13,7 @@ import { LIMITE_CADASTROS_HORA_IP, hashIp, validarCadastro } from '../supabase/f
 import { validarTroca } from '../supabase/functions/estude-criador-senha/nucleo.ts';
 
 const SITE = path.resolve(import.meta.dirname, '../site');
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
+const TIPOS = { '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 const senhas = new Map();
 
 const IA_CONTEUDO = '```json\n' + JSON.stringify({
@@ -261,6 +261,26 @@ async function cadastro(req, res) {
   json(res, { ok: true });
 }
 
+// pasta "estude-escolas" de mentira: mesma regra da produção (só gestor da escola, só na pasta dela, imagem até 3 MB)
+const ARMAZEM = path.join(import.meta.dirname, '.armazenamento');
+function lerBruto(req) { return new Promise((ok) => { const partes = []; req.on('data', (c) => partes.push(c)); req.on('end', () => ok(Buffer.concat(partes))); }); }
+async function guardarArquivo(req, res, url) {
+  const [bucket, ...resto] = url.pathname.slice('/__storage/'.length).split('/');
+  const nome = decodeURIComponent(resto.join('/'));
+  const corpo = await lerBruto(req);
+  if (bucket !== 'estude-escolas') return json(res, { error: { message: 'Bucket not found' } }, 400);
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(req.headers['content-type'])) return json(res, { error: { message: 'mime type not supported' } }, 400);
+  if (corpo.length > 3145728) return json(res, { error: { message: 'The object exceeded the maximum allowed size' } }, 413);
+  const pode = await chamarRpc(tokenDe(req), 'be_pode_enviar_imagem_escola', { p_caminho: nome });
+  if (pode.error || pode.data !== true) return json(res, { error: { message: 'new row violates row-level security policy' } }, 403);
+  const arq = path.join(ARMAZEM, bucket, nome);
+  if (!arq.startsWith(ARMAZEM)) return json(res, { error: { message: 'caminho inválido' } }, 400);
+  if (fs.existsSync(arq)) return json(res, { error: { message: 'The resource already exists' } }, 409);
+  fs.mkdirSync(path.dirname(arq), { recursive: true });
+  fs.writeFileSync(arq, corpo);
+  json(res, { data: { path: nome } });
+}
+
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
@@ -276,6 +296,11 @@ http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/__auth/login') {
       const { email: bruto, password } = await lerCorpo(req);
       const email = String(bruto || '').trim().toLowerCase();
+      // contas criadas direto no banco de teste (escola de demonstração e afins) entram com a senha de teste
+      if (!senhas.has(email) && password === (email.endsWith('.monteaurora@example.com') ? 'MonteAurora2026' : 'senha-de-teste')) {
+        const { rows } = await pool.query('select id from auth.users where lower(email) = $1', [email]);
+        if (rows[0]) senhas.set(email, { id: rows[0].id, password });
+      }
       const u = senhas.get(email);
       if (!u || u.password !== password) return json(res, { error: { message: 'Invalid login credentials' } });
       return json(res, { session: { access_token: u.id, user: { id: u.id, email, user_metadata: {} } } });
@@ -286,6 +311,13 @@ http.createServer(async (req, res) => {
       if (!conta) return json(res, { error: { message: 'Auth session missing!' } });
       conta.password = password;
       return json(res, { data: {} });
+    }
+    if (req.method === 'POST' && url.pathname.startsWith('/__storage/')) return await guardarArquivo(req, res, url);
+    if (req.method === 'GET' && url.pathname.startsWith('/__arquivos/')) {
+      const arq = path.join(ARMAZEM, decodeURIComponent(url.pathname.slice('/__arquivos/'.length)));
+      if (!arq.startsWith(ARMAZEM) || !fs.existsSync(arq)) { res.writeHead(404); return res.end('404'); }
+      res.writeHead(200, { 'Content-Type': TIPOS[path.extname(arq)] || 'application/octet-stream' });
+      return res.end(fs.readFileSync(arq));
     }
     if (req.method === 'POST' && url.pathname === '/__db') return json(res, await executar(tokenDe(req), await lerCorpo(req)));
     if (req.method === 'POST' && url.pathname.startsWith('/__rpc/')) return json(res, await chamarRpc(tokenDe(req), url.pathname.slice(7), await lerCorpo(req)));

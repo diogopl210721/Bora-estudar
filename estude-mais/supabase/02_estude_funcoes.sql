@@ -1,4 +1,4 @@
--- Estude+ — regras do jogo no servidor (XP, streak, liga, revisão espaçada, plano, simulado ENEM)
+-- EstudeUp — regras do jogo no servidor (XP, streak, liga, revisão espaçada, plano, simulado ENEM)
 -- Tudo security definer com checagem de dono; o front só chama rpc().
 
 
@@ -11,7 +11,7 @@ begin
   if session_user = 'authenticator'
      and coalesce(current_setting('be.interno', true), '') <> '1'
      and coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role', '') <> 'service_role' then
-    raise exception 'função interna do Estude+';
+    raise exception 'função interna do EstudeUp';
   end if;
 end $$;
 

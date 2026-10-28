@@ -14,5 +14,8 @@ $P -d estude -f ../supabase/07_estude_plano_substituidas.sql 2>&1 | grep -v NOTI
 $P -d estude -f ../supabase/08_estude_grupos_permissoes.sql 2>&1 | grep -v NOTICE || true
 $P -d estude -f ../supabase/09_estude_criador.sql 2>&1 | grep -v NOTICE || true
 $P -d estude -f ../supabase/10_estude_criador_contas.sql 2>&1 | grep -v NOTICE || true
+$P -d estude -f ../supabase/11_estude_escolas.sql 2>&1 | grep -v NOTICE || true
+$P -d estude -f ../supabase/13_estude_vitrine_demo_por_ultimo.sql 2>&1 | grep -v NOTICE || true
+$P -d estude -f ../supabase/14_estude_marca_estudeup.sql 2>&1 | grep -v NOTICE || true
 for f in ../supabase/enem/enem_*.sql; do $P -d estude -f $f >/dev/null; done
 $P -d estude -c "select count(*) as questoes_enem from be_enem_questoes"

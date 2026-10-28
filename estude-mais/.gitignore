@@ -4,3 +4,4 @@ teste/server.log
 teste/server.pid
 supabase/enem/
 __pycache__/
+teste/.armazenamento/

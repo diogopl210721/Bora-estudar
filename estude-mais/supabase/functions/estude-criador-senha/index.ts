@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { validarTroca } from "./nucleo.ts";
 
-// Só a conta do criador (tabela be_criadores) troca a senha de uma conta do Estude+ — pra quem esqueceu e não tem pergunta de segurança.
+// Só a conta do criador (tabela be_criadores) troca a senha de uma conta do EstudeUp — pra quem esqueceu e não tem pergunta de segurança.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 

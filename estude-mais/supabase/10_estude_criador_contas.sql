@@ -1,4 +1,4 @@
--- Estude+ — conta do criador: achar uma conta pelo nome ou e-mail (pra trocar a senha ou silenciar).
+-- EstudeUp — conta do criador: achar uma conta pelo nome ou e-mail (pra trocar a senha ou silenciar).
 -- A troca de senha em si é feita pela Edge Function estude-criador-senha, que confere de novo se quem pediu é o criador.
 -- Só cria ou substitui (pode rodar de novo).
 

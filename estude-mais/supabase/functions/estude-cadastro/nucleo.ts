@@ -1,4 +1,4 @@
-// Núcleo do cadastro do Estude+: só e-mail e senha (digitada 2 vezes no app), sem e-mail de confirmação. Sem imports.
+// Núcleo do cadastro do EstudeUp: só e-mail e senha (digitada 2 vezes no app), sem e-mail de confirmação. Sem imports.
 
 export const LIMITE_CADASTROS_HORA_IP = 5;     // contas criadas por hora a partir do mesmo endereço
 export const LIMITE_CADASTROS_HORA_TOTAL = 200; // trava geral contra robô

@@ -1,4 +1,4 @@
--- Estude+ — ao remontar o plano de prova, as tarefas antigas ficam marcadas como substituídas em vez de apagadas.
+-- EstudeUp — ao remontar o plano de prova, as tarefas antigas ficam marcadas como substituídas em vez de apagadas.
 alter table public.be_plano_tarefas add column if not exists substituida boolean not null default false;
 create index if not exists be_plano_tarefas_ativas_idx on public.be_plano_tarefas (usuario_id, dia) where not substituida;
 

@@ -1,4 +1,4 @@
--- Estude+ (evolução do Bora Estudar) — schema aditivo, prefixo be_
+-- EstudeUp (evolução do Bora Estudar) — schema aditivo, prefixo be_
 -- Datas do app sempre no fuso de Brasília.
 
 create or replace function public.be_hoje() returns date

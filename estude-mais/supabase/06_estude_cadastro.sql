@@ -1,4 +1,4 @@
--- Estude+ — cadastro só com e-mail e senha, sem e-mail de confirmação.
+-- EstudeUp — cadastro só com e-mail e senha, sem e-mail de confirmação.
 -- A Edge Function estude-cadastro cria a conta já confirmada; esta tabela só guarda o limite de contas novas por hora.
 create table if not exists public.be_cadastro_tentativas (
   id bigint generated always as identity primary key,

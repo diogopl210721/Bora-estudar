@@ -9,7 +9,7 @@ export const XP_PUBLICAR = 25;
 // telefone no formato brasileiro, sem pegar datas e contas ("1914-1918", "1500, 1822 e 1889")
 const CONTATO = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|br|io|me|ly|gg|app|xyz)\b|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|(^|\s)@[a-z0-9_.]{3,}|(?<![\d.,])\(?\d{2}\)?[\s.-]?9?[\s.]?\d{4}[\s.-]?\d{4}\b|\b9\d{4}[\s.-]?\d{4}\b|(?<![\d.,])\d{10,11}(?!\d))/i;
 
-export const PROMPT_MODERACAO = `Você modera a biblioteca de resumos do Estude+, usada por alunos brasileiros a partir de 12 anos.
+export const PROMPT_MODERACAO = `Você modera a biblioteca de resumos do EstudeUp, usada por alunos brasileiros a partir de 12 anos.
 Leia o resumo e decida se ele pode ser publicado. Responda SOMENTE com JSON: {"aprovado": true ou false, "motivo": "frase curta para o aluno, em português"}.
 Reprove quando houver: conteúdo sexual; violência explícita ou incentivo a se machucar; discurso de ódio ou preconceito;
 ofensa, bullying ou exposição de uma pessoa real (colega, professor) pelo nome; dados pessoais ou de contato; propaganda, spam ou venda;

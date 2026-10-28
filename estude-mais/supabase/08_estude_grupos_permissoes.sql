@@ -1,4 +1,4 @@
--- Estude+ — quem põe material num grupo: na turma do professor só ele (dono ou admin); no grupo de amigos, qualquer membro.
+-- EstudeUp — quem põe material num grupo: na turma do professor só ele (dono ou admin); no grupo de amigos, qualquer membro.
 -- Vale pra matéria nova do grupo, material novo, flashcard criado à mão, data da prova e nota real.
 
 -- usuário logado (usada nas regras de acesso)

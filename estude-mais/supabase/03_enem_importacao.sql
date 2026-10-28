@@ -1,4 +1,4 @@
--- Estude+ — apoio à importação única das questões do ENEM (usado pela função estude-importar-enem)
+-- EstudeUp — apoio à importação única das questões do ENEM (usado pela função estude-importar-enem)
 
 create table if not exists public.be_import_chave (
   chave text primary key,

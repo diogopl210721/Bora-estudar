@@ -1,4 +1,4 @@
--- Estude+ — biblioteca de resumos, tutor de IA e comunidade.
+-- EstudeUp — biblioteca de resumos, tutor de IA e comunidade.
 -- Só cria ou substitui (pode rodar de novo). Nomes públicos aparecem como "Ana S." e sem foto, por causa dos alunos menores.
 
 alter table public.be_usuarios add column if not exists serie text;

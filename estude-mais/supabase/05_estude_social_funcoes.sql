@@ -1,4 +1,4 @@
--- Estude+ — funções da biblioteca, do tutor e da comunidade. Só cria ou substitui.
+-- EstudeUp — funções da biblioteca, do tutor e da comunidade. Só cria ou substitui.
 
 -- ---------------- BIBLIOTECA ----------------
 create or replace function public.be_autor_json(p_usuario uuid) returns json

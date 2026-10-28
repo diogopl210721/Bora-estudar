@@ -39,6 +39,20 @@
       return {
         from: construtor,
         rpc: (nome, args) => post('/__rpc/' + nome, args),
+        // armazenamento de arquivos: o servidor de teste confere a mesma regra da pasta de produção
+        storage: {
+          from(bucket) {
+            return {
+              async upload(caminho, arquivo, opts = {}) {
+                const sess = ler();
+                const r = await fetch('/__storage/' + bucket + '/' + caminho, { method: 'POST', headers: { 'Content-Type': opts.contentType || arquivo.type || 'application/octet-stream', Authorization: sess ? 'Bearer ' + sess.access_token : '' }, body: arquivo });
+                const j = await r.json();
+                return { data: j.error ? null : { path: caminho }, error: j.error || null };
+              },
+              getPublicUrl(caminho) { return { data: { publicUrl: 'https://arquivos.exemplo-teste.com/' + bucket + '/' + caminho } }; },
+            };
+          },
+        },
         // sem tempo real no teste: o app cai na busca periódica
         channel() { const c = { on() { return c; }, subscribe(cb) { if (cb) setTimeout(() => cb('CHANNEL_ERROR'), 0); return c; } }; window.__canais = (window.__canais || 0) + 1; return c; },
         removeChannel() { window.__canais = (window.__canais || 1) - 1; return Promise.resolve('ok'); },

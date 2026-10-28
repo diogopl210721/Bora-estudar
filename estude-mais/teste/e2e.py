@@ -1,4 +1,4 @@
-"""Teste de ponta a ponta do Estude+ contra o banco local (RLS e funções de verdade, IA simulada)."""
+"""Teste de ponta a ponta do EstudeUp contra o banco local (RLS e funções de verdade, IA simulada)."""
 import os, re, sys, json, datetime, subprocess
 from playwright.sync_api import sync_playwright
 
@@ -593,7 +593,7 @@ def principal(pw):
     p.evaluate('verPerfil()')
     tela(p, 'perfil')
     p.wait_for_selector('#perfil-criador:not([hidden])')
-    assert 'criador do Estude+' in p.inner_text('#perfil-meta')
+    assert 'criador do EstudeUp' in p.inner_text('#perfil-meta')
     shot(p, '38a-criador-perfil')
     p.click('#perfil-criador')
     tela(p, 'criador')
@@ -632,7 +632,7 @@ def principal(pw):
     p.locator('.sala-item:not(.turma)').first.click()
     tela(p, 'sala')
     sem_carregando(p, '#sala-mensagens')
-    p.fill('#sala-texto', 'Bem-vindos ao Estude+! Novidades em ddsinovacao.com.br/estudemais')
+    p.fill('#sala-texto', 'Bem-vindos ao EstudeUp! Novidades em estudeup.com.br')
     p.click('#sala-enviar')
     p.wait_for_selector('#sala-mensagens .bolha-linha.minha')
     p.fill('#sala-texto', 'Qualquer dúvida, chama aqui.')
@@ -643,12 +643,12 @@ def principal(pw):
     tela(p, 'grupos')
     p.click('text=criar grupo')
     p.wait_for_selector('#criar-tipo:not([hidden])')
-    p.fill('#input-nome-grupo', 'Monitoria Estude+')
+    p.fill('#input-nome-grupo', 'Monitoria EstudeUp')
     p.fill('#input-materia-grupo', 'Matemática')
     p.click('#btn-criar-grupo')
     esperar_dialogo(p, 'Grupo criado')
-    p.wait_for_selector('.group-card:has-text("Monitoria Estude+")')
-    assert ', turma,' in p.inner_text('.group-card:has-text("Monitoria Estude+")'), 'deveria ser turma'
+    p.wait_for_selector('.group-card:has-text("Monitoria EstudeUp")')
+    assert ', turma,' in p.inner_text('.group-card:has-text("Monitoria EstudeUp")'), 'deveria ser turma'
     # senha provisória pra quem esqueceu (conta nova não tem pergunta de segurança)
     p.evaluate('verCriador()')
     tela(p, 'criador')
