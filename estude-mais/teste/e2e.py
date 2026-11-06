@@ -253,9 +253,11 @@ def principal(pw):
     sem_carregando(p, '#home-tarefas')
     p.wait_for_selector('#home-tarefas .task')
     shot(p, '08-hoje-plano')
-    # tarefa "estudar" → resumo → marcar
+    # tarefa "estudar" → aula do tópico → marcar
     p.locator('#home-tarefas .task').first.locator('.go-small').click()
-    tela(p, 'materia')
+    tela(p, 'estudo')
+    p.wait_for_selector('#estudo-conteudo .aula', timeout=15000)
+    shot(p, '08b-aula-topico')
     p.click('text=Estudei, marcar tarefa como feita')
     p.wait_for_timeout(700)
     # flashcards

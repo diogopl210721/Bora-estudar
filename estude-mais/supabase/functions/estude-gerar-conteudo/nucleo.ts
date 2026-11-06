@@ -123,7 +123,9 @@ export async function persistirConteudo(
   }
   const topicoId = (nome?: string) => (nome ? porNome.get(nome.toLowerCase()) ?? null : null);
 
-  // conteúdo gerado: substitui a versão anterior da matéria
+  // material novo muda a matéria: as aulas por tópico são refeitas na próxima vez que alguém abrir
+  await ok(admin.from("be_topico_estudo").delete().eq("materia_id", materiaId), "limpar aulas dos tópicos");
+  // conteúdo gerado: substitui a versão anterior da matéria (inclui o quiz de cada tópico)
   await ok(admin.from("be_conteudo_gerado").delete().eq("materia_id", materiaId), "limpar conteúdo antigo");
   await ok(admin.from("be_conteudo_gerado").insert([
     { materia_id: materiaId, tipo: "resumo", conteudo: { texto: gerado.resumo, titulo: gerado.titulo } },

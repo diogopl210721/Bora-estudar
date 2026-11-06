@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { extrairJson, normalizarGerado, persistirConteudo } from "./nucleo.ts";
 import { mensagemFonte, textoDoSite, transcricaoYoutube } from "./fontes.ts";
+import { PROMPT_TOPICO, contextoTopico, normalizarTopico, persistirTopico } from "./topico.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const MODELO = Deno.env.get("ESTUDE_MODELO") || "claude-sonnet-5-5";
@@ -49,8 +50,8 @@ Deno.serve(async (req) => {
     if (!jwt) return resposta({ error: "não autenticado" }, 401);
     if (!ANTHROPIC_API_KEY) return resposta({ error: "ANTHROPIC_API_KEY não configurada nas secrets da função" }, 500);
 
-    const { materia_id, tipo_fonte, imagem_base64, imagens_base64, pdf_base64, url, texto, apenas_testar_fonte } = await req.json();
-    if (!tipo_fonte || (!materia_id && !apenas_testar_fonte)) return resposta({ error: "materia_id e tipo_fonte são obrigatórios" }, 400);
+    const { materia_id, tipo_fonte, imagem_base64, imagens_base64, pdf_base64, url, texto, apenas_testar_fonte, acao, topico_id } = await req.json();
+    if (acao !== "estudar_topico" && (!tipo_fonte || (!materia_id && !apenas_testar_fonte))) return resposta({ error: "materia_id e tipo_fonte são obrigatórios" }, 400);
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const comoUsuario = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: `Bearer ${jwt}` } } });
@@ -59,6 +60,28 @@ Deno.serve(async (req) => {
     if (authErr || !auth.user) return resposta({ error: "sessão inválida, faça login de novo" }, 401);
     const { data: usuario } = await admin.from("be_usuarios").select("id").eq("auth_user_id", auth.user.id).single();
     if (!usuario) return resposta({ error: "usuário não encontrado" }, 401);
+
+    // aula de um tópico: gerada uma vez, guardada e usada por todos da matéria (não gasta energia)
+    if (acao === "estudar_topico") {
+      if (typeof topico_id !== "string" || !/^[0-9a-f-]{36}$/i.test(topico_id)) return resposta({ error: "tópico inválido" }, 400);
+      const ctx = await contextoTopico(admin, topico_id);
+      if (!ctx) return resposta({ error: "tópico não encontrado" }, 404);
+      const { data: pode } = await admin.rpc("be_materia_acessivel_para", { p_usuario: usuario.id, p_materia: ctx.topico.materia_id });
+      if (!pode) return resposta({ error: "tópico não encontrado" }, 404);
+      const { data: pronta } = await admin.from("be_topico_estudo").select("topico_id").eq("topico_id", topico_id).maybeSingle();
+      if (pronta) return resposta({ ok: true, ja_existia: true });
+      const iaT = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model: MODELO, max_tokens: 6000, system: PROMPT_TOPICO, messages: [{ role: "user", content: ctx.pedido }] }),
+      });
+      if (!iaT.ok) return resposta({ error: "não consegui preparar a aula agora, tenta de novo", detalhe: await iaT.text() }, 502);
+      const blocoT = ((await iaT.json()).content || []).find((b: { type: string }) => b.type === "text");
+      let geradoT;
+      try { geradoT = normalizarTopico(extrairJson(blocoT?.text || "")); } catch (e) { return resposta({ error: String((e as Error).message || e) }, 502); }
+      await persistirTopico(admin, { topico: ctx.topico, usuarioId: usuario.id, gerado: geradoT });
+      return resposta({ ok: true });
+    }
 
     // só confere se o vídeo ou o site dá pra ler (sem IA e sem gastar energia)
     if (apenas_testar_fonte) {

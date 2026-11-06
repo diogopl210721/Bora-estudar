@@ -5,6 +5,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { poolAdmin as pool, executar, chamarRpc, clienteAdmin } from './executor.mjs';
 import { extrairJson, normalizarGerado, persistirConteudo } from '../supabase/functions/estude-gerar-conteudo/nucleo.ts';
+import { contextoTopico, normalizarTopico, persistirTopico } from '../supabase/functions/estude-gerar-conteudo/topico.ts';
 import { normalizarCorrecao } from '../supabase/functions/estude-corrigir-redacao/nucleo.ts';
 import { LIMITE_TUTOR_DIA, XP_TUTOR, XP_TUTOR_MAX_DIA, limparResposta, montarMensagens, tituloDaConversa, validarPedido } from '../supabase/functions/estude-tutor/nucleo.ts';
 import { LIMITE_PUBLICACOES_DIA, XP_PUBLICAR, dataHora, lerModeracao, textoParaModerar, validarPublicacao } from '../supabase/functions/estude-publicar-resumo/nucleo.ts';
@@ -76,6 +77,23 @@ async function gerarConteudo(req, res) {
   const uid = sub && await usuarioDe(sub);
   if (!uid) return json(res, { error: 'não autenticado' }, 401);
   const admin = clienteAdmin();
+  if (corpo.acao === 'estudar_topico') {
+    // aula falsa, mas própria do tópico (o nome do tópico entra no texto e nas perguntas)
+    const ctx = await contextoTopico(admin, corpo.topico_id);
+    if (!ctx) return json(res, { error: 'tópico não encontrado' }, 404);
+    const { data: pode } = await admin.rpc('be_materia_acessivel_para', { p_usuario: uid, p_materia: ctx.topico.materia_id });
+    if (!pode) return json(res, { error: 'tópico não encontrado' }, 404);
+    await new Promise((ok) => setTimeout(ok, 1200));
+    const n = ctx.topico.nome;
+    const q = (i) => ({ pergunta: `Pergunta ${i} sobre ${n}?`, opcoes: { A: `certa ${i}`, B: 'errada', C: 'errada 2', D: 'errada 3' }, resposta_correta: 'A', explicacao: `porque ${n}` });
+    const gerado = normalizarTopico({
+      introducao: `${n} é o assunto desta aula.`, partes: [{ titulo: `O que é ${n}`, texto: `Explicação de ${n}.` }, { titulo: 'Na prova', texto: `Como ${n} cai.` }],
+      exemplo: `Exemplo de ${n}.`, macete: `Macete de ${n}.`, para_lembrar: [`${n} em uma frase`],
+      quiz: [1, 2, 3, 4, 5].map(q), flashcards: [{ frente: `O que é ${n}?`, verso: `É ${n}.` }],
+    });
+    await persistirTopico(admin, { topico: ctx.topico, usuarioId: uid, gerado });
+    return json(res, { ok: true });
+  }
   const { data: acesso } = await admin.rpc('be_materia_acessivel_para', { p_usuario: uid, p_materia: corpo.materia_id });
   if (!acesso) return json(res, { error: 'matéria não encontrada' }, 404);
   const { data: podeEditar } = await admin.rpc('be_pode_editar_materia_para', { p_usuario: uid, p_materia: corpo.materia_id });
