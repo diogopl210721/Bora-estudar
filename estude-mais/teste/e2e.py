@@ -132,9 +132,18 @@ def gerar_materia(p, nome, dias):
     p.fill('#input-data-prova', (HOJE + datetime.timedelta(days=dias)).isoformat())
     if nome == 'Biologia':
         # foto escolhida vira polaroide com visto
-        p.set_input_files('#input-galeria', os.path.join(os.path.dirname(__file__), 'exercicio.png'))
+        # várias páginas: 3 da galeria de uma vez, tira uma, mais uma pela câmera = 3 fotos numa geração só
+        img = os.path.join(os.path.dirname(__file__), 'exercicio.png')
+        p.set_input_files('#input-galeria', [img, img, img])
         p.wait_for_selector('#foto-moldura.com-foto')
+        p.wait_for_function("document.querySelectorAll('#fotos-lista .foto-mini img').length === 3")
+        p.click('#fotos-lista .foto-mini:nth-child(2) button')
+        p.set_input_files('#input-camera', img)
+        p.wait_for_function("document.querySelectorAll('#fotos-lista .foto-mini img').length === 3")
+        assert '3 fotos' in p.inner_text('#foto-status'), p.inner_text('#foto-status')
         shot(p, '02a-upload-foto', 900)
+        enviados = []
+        p.on('request', lambda r: enviados.append(r.post_data_json) if r.url.endswith('/estude-gerar-conteudo') else None)
     else:
         p.click('.src-tab[data-fonte=texto]')
         p.fill('#input-texto', TEXTO)
@@ -143,6 +152,7 @@ def gerar_materia(p, nome, dias):
         p.wait_for_selector('#fx-gerando:not([hidden])')
         p.wait_for_timeout(3700)
         p.screenshot(path=os.path.join(SHOTS, '02b-gerando.png'))
+        assert enviados and len(enviados[0].get('imagens_base64') or []) == 3, 'deveriam ir 3 fotos'
     tela(p, 'pronto', 15000)
 
 

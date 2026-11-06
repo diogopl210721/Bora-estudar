@@ -66,7 +66,7 @@ export function normalizarGerado(bruto: any): Gerado {
 
   const g: Gerado = {
     titulo: texto(bruto.titulo, 120) || "Matéria",
-    texto_bruto: texto(bruto.texto_bruto, 8000),
+    texto_bruto: texto(bruto.texto_bruto, 20000), // várias fotos de uma vez geram mais texto
     resumo: texto(bruto.resumo, 6000),
     topicos,
     mapa_mental: { tema_central: texto(bruto.mapa_mental?.tema_central, 120), ramos },

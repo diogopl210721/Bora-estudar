@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     if (!jwt) return resposta({ error: "não autenticado" }, 401);
     if (!ANTHROPIC_API_KEY) return resposta({ error: "ANTHROPIC_API_KEY não configurada nas secrets da função" }, 500);
 
-    const { materia_id, tipo_fonte, imagem_base64, pdf_base64, url, texto, apenas_testar_fonte } = await req.json();
+    const { materia_id, tipo_fonte, imagem_base64, imagens_base64, pdf_base64, url, texto, apenas_testar_fonte } = await req.json();
     if (!tipo_fonte || (!materia_id && !apenas_testar_fonte)) return resposta({ error: "materia_id e tipo_fonte são obrigatórios" }, 400);
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -98,9 +98,18 @@ Deno.serve(async (req) => {
     }
 
     if (tipo_fonte === "foto") {
-      if (!imagem_base64) return resposta({ error: "faltou a imagem" }, 400);
-      blocos.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: imagem_base64 } });
-      blocos.push({ type: "text", text: "Foto de caderno ou material de estudo. Leia tudo, inclusive letra à mão, e gere o conteúdo pedido." });
+      // uma ou várias fotos (páginas do mesmo material); versões antigas do app mandam só imagem_base64
+      const fotos = (Array.isArray(imagens_base64) ? imagens_base64 : [imagem_base64])
+        .filter((f: unknown) => typeof f === "string" && f.length > 100).slice(0, 10);
+      if (!fotos.length) return resposta({ error: "faltou a imagem" }, 400);
+      if (fotos.reduce((t: number, f: string) => t + f.length, 0) > 25_000_000) return resposta({ error: "as fotos ficaram grandes demais, manda menos de uma vez" }, 413);
+      fotos.forEach((f: string, i: number) => {
+        if (fotos.length > 1) blocos.push({ type: "text", text: `Foto ${i + 1} de ${fotos.length}:` });
+        blocos.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } });
+      });
+      blocos.push({ type: "text", text: fotos.length > 1
+        ? `São ${fotos.length} fotos do mesmo material, em ordem (páginas seguidas de caderno, livro ou apostila). Leia todas, inclusive letra à mão, junte num conteúdo só e gere o que foi pedido.`
+        : "Foto de caderno ou material de estudo. Leia tudo, inclusive letra à mão, e gere o conteúdo pedido." });
     } else if (tipo_fonte === "pdf") {
       if (!pdf_base64) return resposta({ error: "faltou o PDF" }, 400);
       blocos.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdf_base64 } });
