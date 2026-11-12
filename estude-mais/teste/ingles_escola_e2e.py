@@ -61,7 +61,7 @@ def entrar(p, email, senha=SENHA_DEMO):
     p.fill('#input-email-login', email)
     p.fill('#input-senha-login', senha)
     p.click('#btn-login')
-    p.wait_for_selector('#screen-home.active', timeout=15000)
+    p.wait_for_selector('#screen-home.active, #screen-minha-escola.active', timeout=15000)
     p.wait_for_timeout(900)
 
 
@@ -143,6 +143,28 @@ with sync_playwright() as pw:
     p.screenshot(path=os.path.join(SH, 'exclusivo-login.png'))
     ctx.close(); nav.close()
 sql("update be_instituicoes set modo = 'parceira' where slug = 'colegio-monte-aurora'")
+
+# ---------- coordenação: só administra ----------
+with sync_playwright() as pw:
+    nav = pw.chromium.launch()
+    for largura in (390, 1340):
+        ctx, p = contexto(nav, largura)
+        entrar(p, 'coordenacao.monteaurora@example.com')
+        p.wait_for_selector('#screen-minha-escola.active', timeout=10000)
+        confere(True, f'coordenação abre direto no painel da escola ({largura}px)')
+        confere(p.evaluate("document.body.classList.contains('modo-gestor')"), 'modo coordenação ligado')
+        p.wait_for_selector('#visao-escola .nums-grade', timeout=10000)
+        txt = p.inner_text('#visao-escola')
+        confere('alunos' in txt and 'professores' in txt and 'Alunos por série' in txt, 'visão geral com alunos, professores e séries')
+        confere(not p.is_visible('#navbar') and not p.is_visible('[data-s="ingles"]'), 'sem barra de aluno nem lições')
+        p.evaluate("verHoje()"); p.wait_for_timeout(600)
+        confere(p.evaluate("telaAtual()") == 'minha-escola', 'o "início" da coordenação é o painel')
+        p.screenshot(path=os.path.join(SH, f'gestor-{largura}.png'), full_page=True)
+        ctx.close()
+    ctx, p = contexto(nav, 390)
+    entrar(p, 'helena.monteaurora@example.com'); p.wait_for_timeout(1500)
+    confere(p.evaluate("telaAtual()") == 'home' and not p.evaluate("document.body.classList.contains('modo-gestor')"), 'professora continua com o app completo')
+    ctx.close(); nav.close()
 
 ruins = [e for e in erros if 'status of 403' not in e]
 print('erros de página:', ruins or 'nenhum')

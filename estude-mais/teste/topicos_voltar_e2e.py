@@ -61,7 +61,7 @@ def entrar(p, email, senha=SENHA_DEMO):
     p.fill('#input-email-login', email)
     p.fill('#input-senha-login', senha)
     p.click('#btn-login')
-    p.wait_for_selector('#screen-home.active', timeout=15000)
+    p.wait_for_selector('#screen-home.active, #screen-minha-escola.active', timeout=15000)
     p.wait_for_timeout(900)
 
 
