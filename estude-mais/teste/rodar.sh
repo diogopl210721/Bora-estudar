@@ -16,3 +16,4 @@ psql -h /tmp -p 54329 -U postgres -d estude -X -q -f permissoes_escolas.sql 2>&1
 ./carregar_demo.sh
 timeout 400 python3 escolas_e2e.py
 timeout 300 python3 topicos_voltar_e2e.py
+timeout 300 python3 ingles_escola_e2e.py
